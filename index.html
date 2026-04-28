@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Matematika Waldorf – Cvičení</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#C8DFF2; --surface:#FFFFFF; --cell:#FBF4D6; --cborder:#C8A441;
+  --text:#1A237E; --text2:#5C6BC0;
+  --h1:#E65100; --h2:#F57C00;
+  --green:#2E7D32; --gfade:#E8F5E9;
+}
+
+body{
+  font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,var(--h1) 0%,var(--h2) 100%);
+  color:#fff;
+  padding:14px 20px;
+  box-shadow:0 2px 12px rgba(230,81,0,.35);
+  flex-shrink:0;
+}
+header h1{
+  font-size:clamp(16px,4vw,26px);
+  font-weight:900;
+  letter-spacing:-.3px;
+  margin-bottom:2px;
+}
+header p{
+  font-size:clamp(11px,2vw,14px);
+  opacity:.85;
+  font-weight:500;
+}
+
+/* ── MAIN ── */
+main{
+  flex:1;
+  padding:20px 16px 32px;
+  max-width:780px;
+  width:100%;
+  margin:0 auto;
+}
+
+/* ── SECTION ── */
+section{margin-bottom:28px;}
+section h2{
+  font-size:clamp(13px,2.5vw,17px);
+  font-weight:800;
+  color:var(--h1);
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  margin-bottom:12px;
+  padding-bottom:6px;
+  border-bottom:2px solid var(--cborder);
+}
+
+/* ── CARDS ── */
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:12px;
+}
+
+.card{
+  display:flex;
+  flex-direction:column;
+  background:var(--surface);
+  border:1.5px solid var(--cborder);
+  border-radius:14px;
+  overflow:hidden;
+  text-decoration:none;
+  box-shadow:0 2px 8px rgba(26,35,126,.08);
+  transition:transform .15s,box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 18px rgba(26,35,126,.15);
+}
+.card:active{
+  transform:translateY(0);
+  box-shadow:0 2px 8px rgba(26,35,126,.08);
+}
+
+.card-icon{
+  background:linear-gradient(135deg,var(--h1) 0%,var(--h2) 100%);
+  color:#fff;
+  font-size:32px;
+  padding:18px 16px 14px;
+  text-align:center;
+  line-height:1;
+}
+
+.card-body{
+  padding:12px 14px 14px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.card-title{
+  font-size:clamp(13px,2.2vw,15px);
+  font-weight:800;
+  color:var(--text);
+  line-height:1.25;
+}
+
+.card-desc{
+  font-size:clamp(11px,1.8vw,12px);
+  color:var(--text2);
+  font-weight:500;
+  line-height:1.4;
+  flex:1;
+}
+
+.card-badge{
+  display:inline-block;
+  background:var(--gfade);
+  color:var(--green);
+  border:1px solid #A5D6A7;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:700;
+  padding:2px 7px;
+  margin-top:6px;
+  width:fit-content;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+
+/* ── FRACTION DEMO ── */
+.frac{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  font-weight:700;
+  font-size:13px;
+  color:var(--h1);
+  line-height:1.1;
+  vertical-align:middle;
+  margin:0 2px;
+}
+.frac span{
+  display:block;
+  text-align:center;
+}
+.frac .line{
+  width:100%;
+  border-top:2px solid var(--h1);
+  margin:1px 0;
+}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;
+  font-size:11px;
+  color:var(--text2);
+  padding:12px 16px 20px;
+  opacity:.7;
+}
+
+/* ── ADD NEW ── */
+.add-hint{
+  background:var(--cell);
+  border:1.5px dashed var(--cborder);
+  border-radius:14px;
+  padding:16px;
+  text-align:center;
+  color:var(--text2);
+  font-size:12px;
+  font-weight:600;
+  margin-top:8px;
+}
+.add-hint code{
+  background:rgba(92,107,192,.12);
+  border-radius:5px;
+  padding:1px 5px;
+  font-size:11px;
+  color:var(--text);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎒 Matematika Waldorf – Cvičení</h1>
+  <p>Interaktivní pracovní listy pro žáky waldorfské školy</p>
+</header>
+
+<main>
+
+  <!-- ══ ZLOMKY ══ -->
+  <section>
+    <h2>Zlomky</h2>
+    <div class="cards">
+
+      <a class="card" href="Matematika%20-%20uprava%20zlomku/index.html">
+        <div class="card-icon">
+          <span class="frac"><span>a</span><span class="line">&nbsp;&nbsp;&nbsp;&nbsp;</span><span>b</span></span>
+          &nbsp;→&nbsp;
+          <span class="frac"><span>na</span><span class="line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span>nb</span></span>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Úprava zlomků</div>
+          <div class="card-desc">Rozšiřování a zkracování zlomků – doplňování chybějících čísel do tabulky.</div>
+          <span class="card-badge">Zlomky · 4. třída</span>
+        </div>
+      </a>
+
+      <a class="card" href="Matematika%20-%20sscitani%20a%20odcitani%20zlomku%20s%20kiwi/index.html">
+        <div class="card-icon">🥝</div>
+        <div class="card-body">
+          <div class="card-title">Sčítání a odčítání zlomků s kiwi</div>
+          <div class="card-desc">Sčítání a odčítání zlomků se stejným jmenovatelem s obrázky kiwi.</div>
+          <span class="card-badge">Zlomky · 4. třída</span>
+        </div>
+      </a>
+
+      <a class="card" href="Matematika%20-%20sscitani%20a%20odcitani%20zlomku/matematika%20IV%20scitni%20a%20odcitani%20zlomku.html">
+        <div class="card-icon">
+          <span class="frac"><span>1</span><span class="line">&nbsp;&nbsp;&nbsp;</span><span>4</span></span>
+          &nbsp;+&nbsp;
+          <span class="frac"><span>2</span><span class="line">&nbsp;&nbsp;&nbsp;</span><span>4</span></span>
+          &nbsp;=&nbsp;?
+        </div>
+        <div class="card-body">
+          <div class="card-title">Sčítání a odčítání zlomků IV</div>
+          <div class="card-desc">Procvičování sčítání a odčítání zlomků se stejným jmenovatelem.</div>
+          <span class="card-badge">Zlomky · 4. třída</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ══ ZÁKLADNÍ POČTY ══ -->
+  <section>
+    <h2>Základní počty</h2>
+    <div class="cards">
+
+      <a class="card" href="Matematika%20I%20scitni%20odcitani%20krat%20deleno%20s%20obrazky/Matematika%20I%20pocty.html">
+        <div class="card-icon">🐍</div>
+        <div class="card-body">
+          <div class="card-title">Matematická křížovka I</div>
+          <div class="card-desc">Sčítání, odčítání, násobení a dělení v interaktivní číselné křížovce s obrázky.</div>
+          <span class="card-badge">Počty · 1.–2. třída</span>
+        </div>
+      </a>
+
+      <a class="card" href="Matematika%20I%20scitni%20odcitani%20krat%20deleno%20s%20obrazky/Matematika%20I%20pocty%2002.html">
+        <div class="card-icon">🐍</div>
+        <div class="card-body">
+          <div class="card-title">Matematická křížovka II</div>
+          <div class="card-desc">Rozšířená verze křížovky – sčítání, odčítání, násobení a dělení s obrázky.</div>
+          <span class="card-badge">Počty · 1.–2. třída</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <div class="add-hint">
+    Novou aplikaci přidáte tak, že vytvoříte složku a vložíte odkaz do tohoto souboru <code>index.html</code>
+    &nbsp;·&nbsp; sekce <code>&lt;!-- ══ NÁZEV SEKCE ══ --&gt;</code>
+  </div>
+
+</main>
+
+<footer>Matematika Waldorf &nbsp;·&nbsp; waldorf.github.io</footer>
+
+</body>
+</html>

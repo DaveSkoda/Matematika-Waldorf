@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Matematická křížovka</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f0f4ff;--surface:#fff;--blue:#2952cc;--blue2:#4a7aff;
+  --bluefade:#dde6ff;--given:#e2e8f0;--gray:#64748b;--gray2:#94a3b8;
+  --border:#cbd5e1;--amber:#f59e0b;
+  --green:#16a34a;--greenfade:#dcfce7;--red:#dc2626;--redfade:#fee2e2;
+}
+body{font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ─────────────────────────────── */
+header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue2) 100%);
+  color:#fff;padding:10px 12px;display:flex;align-items:center;gap:7px;
+  box-shadow:0 2px 12px rgba(41,82,204,.30);flex-shrink:0;z-index:10;}
+header h1{flex:1;font-size:clamp(13px,2.4vw,18px);font-weight:800;letter-spacing:-.3px;}
+.hbtn{background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);
+  color:#fff;padding:6px 11px;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;}
+.hbtn:active{background:rgba(255,255,255,.35);}
+.hbtn.check{background:rgba(255,255,255,.90);color:var(--blue);}
+.hbtn.pdf{background:rgba(255,180,30,.28);border-color:rgba(255,200,80,.55);}
+.hbtn.pdf:active{background:rgba(255,180,30,.50);}
+
+/* ── SETTINGS ──────────────────────────── */
+#settings{background:var(--surface);border-bottom:1.5px solid var(--border);
+  padding:8px 12px;display:flex;flex-wrap:wrap;gap:7px 14px;
+  align-items:flex-end;flex-shrink:0;}
+.sg{display:flex;flex-direction:column;gap:3px;}
+.slabel{font-size:9.5px;font-weight:700;color:var(--gray2);
+  text-transform:uppercase;letter-spacing:.6px;}
+.ops{display:flex;gap:4px;}
+.opbtn{width:36px;height:36px;border:2px solid var(--border);border-radius:9px;
+  background:var(--surface);font-size:17px;font-weight:800;cursor:pointer;
+  touch-action:manipulation;color:var(--gray);display:flex;align-items:center;
+  justify-content:center;transition:all .15s;-webkit-tap-highlight-color:transparent;}
+.opbtn.on{border-color:var(--blue);background:var(--bluefade);color:var(--blue);}
+
+/* Stepper universal */
+.stepper{display:flex;align-items:center;background:var(--bg);
+  border:1.5px solid var(--border);border-radius:9px;overflow:hidden;}
+.stepper button{width:30px;height:34px;border:none;background:transparent;
+  font-size:17px;font-weight:700;color:var(--blue);cursor:pointer;
+  touch-action:manipulation;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.stepper button:active{background:var(--bluefade);}
+/* Span (cols, rows) */
+.stepper span{min-width:26px;text-align:center;font-size:14px;font-weight:700;
+  color:var(--blue);border-left:1px solid var(--border);border-right:1px solid var(--border);
+  height:34px;line-height:34px;}
+/* Input (min, max) — keyboard editable */
+.stepper-inp{
+  width:72px;height:34px;border:none;
+  border-left:1px solid var(--border);border-right:1px solid var(--border);
+  background:transparent;text-align:center;font-size:13px;font-weight:700;
+  color:var(--blue);padding:0 4px;outline:none;
+  -moz-appearance:textfield;
+}
+.stepper-inp::-webkit-inner-spin-button,
+.stepper-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.stepper-inp:focus{background:var(--bluefade);}
+
+/* ── STATUS ─────────────────────────────── */
+#status{text-align:center;padding:4px 12px;font-size:12.5px;font-weight:600;
+  color:var(--gray2);flex-shrink:0;min-height:24px;transition:color .2s;}
+#status.win  {color:var(--green);font-size:14px;}
+#status.error{color:var(--red);}
+
+/* ── MAIN ───────────────────────────────── */
+main{flex:1;display:flex;align-items:center;justify-content:center;
+  padding:6px;overflow:hidden;}
+#grid{display:grid;}
+
+/* ── CELLS ──────────────────────────────── */
+.cell{display:flex;align-items:center;justify-content:center;font-weight:800;
+  border-radius:8px;user-select:none;-webkit-user-select:none;
+  transition:transform .1s,background .15s;}
+.cell.given{background:var(--given);color:#334155;}
+.cell.blank{background:var(--surface);border:2.5px solid #334155;
+  color:var(--blue2);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.cell.blank:active{transform:scale(.92);background:var(--bluefade);}
+.cell.blank.cross{border-color:var(--amber);}
+.cell.blank.filled{border-color:var(--blue2);}
+.cell.blank.correct{background:var(--greenfade);border-color:var(--green);color:var(--green);}
+.cell.blank.wrong{background:var(--redfade);border-color:var(--red);color:var(--red);}
+.cell.active-cell{outline:3px solid var(--blue2);outline-offset:2px;}
+.op{display:flex;align-items:center;justify-content:center;
+  font-weight:700;color:var(--gray2);}
+
+/* ── PICKER ─────────────────────────────── */
+#overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);
+  z-index:200;align-items:flex-end;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+#overlay.open{display:flex;}
+#picker{background:var(--surface);border-radius:22px 22px 0 0;width:100%;
+  max-height:90dvh;display:flex;flex-direction:column;
+  padding:0 14px calc(max(14px,env(safe-area-inset-bottom)));
+  box-shadow:0 -6px 40px rgba(0,0,0,.18);animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.ph{width:40px;height:4px;background:var(--border);border-radius:4px;
+  margin:12px auto 8px;flex-shrink:0;}
+#picker-title{text-align:center;font-size:11px;font-weight:700;color:var(--gray2);
+  text-transform:uppercase;letter-spacing:.6px;padding-bottom:8px;
+  border-bottom:1px solid var(--bg);flex-shrink:0;}
+
+/* Přímý vstup čísla v pickeru */
+#picker-direct{display:flex;gap:8px;padding:10px 0 6px;flex-shrink:0;align-items:center;}
+#picker-inp{flex:1;height:52px;border:2px solid var(--border);border-radius:12px;
+  font-size:22px;font-weight:800;color:var(--blue);text-align:center;
+  padding:0 12px;outline:none;background:var(--bg);
+  -moz-appearance:textfield;}
+#picker-inp::-webkit-inner-spin-button,
+#picker-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+#picker-inp:focus{border-color:var(--blue2);background:var(--bluefade);}
+#picker-inp.err{border-color:var(--red);background:var(--redfade);}
+#picker-ok{width:52px;height:52px;border:none;border-radius:12px;flex-shrink:0;
+  background:var(--blue);color:#fff;font-size:22px;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#picker-ok:active{opacity:.75;}
+
+/* Tlačítkový picker (malý rozsah) */
+#picker-nums{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+  padding:4px 2px 6px;overflow-y:auto;max-height:42dvh;
+  -webkit-overflow-scrolling:touch;}
+.num-btn{border:2px solid var(--border);border-radius:11px;background:var(--surface);
+  font-weight:800;cursor:pointer;touch-action:manipulation;color:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .1s;-webkit-tap-highlight-color:transparent;}
+.num-btn:active{background:var(--bluefade);border-color:var(--blue);transform:scale(.92);}
+.num-btn.current{background:var(--bluefade);border-color:var(--blue2);}
+
+#picker-actions{display:flex;gap:7px;padding-top:6px;flex-shrink:0;}
+.pbtn{flex:1;height:50px;border:none;border-radius:13px;font-size:15px;font-weight:700;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:opacity .1s;}
+.pbtn:active{opacity:.75;}
+.pbtn.del{background:var(--bg);color:var(--gray);border:1.5px solid var(--border);}
+.pbtn.done{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;}
+
+/* ── LOADING ────────────────────────────── */
+#loading{display:none;position:fixed;inset:0;background:rgba(240,244,255,.82);
+  z-index:300;align-items:center;justify-content:center;flex-direction:column;
+  gap:12px;font-weight:700;color:var(--blue);font-size:15px;}
+#loading.on{display:flex;}
+.spinner{width:34px;height:34px;border:4px solid var(--bluefade);
+  border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐍 Matematická křížovka</h1>
+  <a class="hbtn" href="../index.html">🏠 Domů</a>
+  <button class="hbtn check" onclick="checkAnswers()">Zkontrolovat</button>
+  <button class="hbtn pdf"   onclick="exportPDF()">📄 PDF</button>
+  <button class="hbtn"       onclick="newGame()">🔄 Nová</button>
+</header>
+
+<div id="settings">
+  <div class="sg">
+    <div class="slabel">Operace</div>
+    <div class="ops">
+      <button class="opbtn on" data-op="+" onclick="toggleOp(this)">+</button>
+      <button class="opbtn on" data-op="-" onclick="toggleOp(this)">−</button>
+      <button class="opbtn"    data-op="*" onclick="toggleOp(this)">×</button>
+      <button class="opbtn"    data-op="/" onclick="toggleOp(this)">÷</button>
+    </div>
+  </div>
+
+  <!-- Min — klávesnice i tlačítka -->
+  <div class="sg">
+    <div class="slabel">Min. číslo</div>
+    <div class="stepper">
+      <button onclick="adj('min',-1)">−</button>
+      <input class="stepper-inp" id="minVal" type="number" value="0"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('min',this)" onfocus="this.select()">
+      <button onclick="adj('min',+1)">+</button>
+    </div>
+  </div>
+
+  <!-- Max — klávesnice i tlačítka -->
+  <div class="sg">
+    <div class="slabel">Max. číslo</div>
+    <div class="stepper">
+      <button onclick="adj('max',-1)">−</button>
+      <input class="stepper-inp" id="maxVal" type="number" value="10"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('max',this)" onfocus="this.select()">
+      <button onclick="adj('max',+1)">+</button>
+    </div>
+  </div>
+
+  <!-- Skupiny a řetězení — jen tlačítka stačí -->
+  <div class="sg">
+    <div class="slabel">Skupiny (1–4)</div>
+    <div class="stepper">
+      <button onclick="adj('cols',-1)">−</button>
+      <span id="colsVal">2</span>
+      <button onclick="adj('cols',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Řetězení (2–5)</div>
+    <div class="stepper">
+      <button onclick="adj('rows',-1)">−</button>
+      <span id="rowsVal">3</span>
+      <button onclick="adj('rows',+1)">+</button>
+    </div>
+  </div>
+</div>
+
+<div id="status"></div>
+<main><div id="grid"></div></main>
+
+<!-- PICKER OVERLAY -->
+<div id="overlay" onclick="overlayClick(event)">
+  <div id="picker">
+    <div class="ph"></div>
+    <div id="picker-title">Vyber nebo zapiš číslo</div>
+
+    <!-- Přímý vstup (vždy viditelný) -->
+    <div id="picker-direct">
+      <input id="picker-inp" type="number" inputmode="numeric" pattern="[0-9]*"
+             placeholder="zadej číslo…" onkeydown="pickerKey(event)">
+      <button id="picker-ok" onclick="confirmInp()" title="Potvrdit">✓</button>
+    </div>
+
+    <!-- Tlačítka (jen pro malý rozsah ≤ 40) -->
+    <div id="picker-nums"></div>
+
+    <div id="picker-actions">
+      <button class="pbtn del"  onclick="clearCell()">✕ Smazat</button>
+      <button class="pbtn done" onclick="confirmInp()">Potvrdit</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading"><div class="spinner"></div><span>Generuji…</span></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  KONFIGURACE & STAV
+// ═══════════════════════════════════════════════════
+const SYM={'+':'+','-':'−','*':'×','/':'÷'};
+const MAX_ALLOWED = 1_000_000;
+
+let cfg={ops:['+','-'],min:0,max:10,cols:2,rows:3};
+let puzzle=null,BLANK=null,CROSS=null;
+let answers={},feedback=null,activeKey=null;
+
+// ═══════════════════════════════════════════════════
+//  RNG (seeded LCG)
+// ═══════════════════════════════════════════════════
+function rng(){
+  let s=(Math.random()*0xFFFFFFFF)>>>0;
+  return{
+    f(){s=Math.imul(s,1664525)+1013904223>>>0;return s/0x100000000;},
+    int(a,b){return a+Math.floor(this.f()*(b-a+1));},
+    pick(arr){return arr[Math.floor(this.f()*arr.length)];},
+    shuf(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(this.f()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  TOPOLOGIE
+// ═══════════════════════════════════════════════════
+const NC=()=>4*cfg.cols-2;
+const NR=()=>2*cfg.rows;
+
+function isBlack(c,r){
+  for(let g=0;g<cfg.cols-1;g++)if(c===4*g+3)return true;
+  for(let g=0;g<cfg.cols;g++)if(c===4*g+1&&r%2===1)return true;
+  return false;
+}
+function buildBlank(){
+  const s=new Set();
+  for(let g=0;g<cfg.cols;g++){
+    for(let k=0;k<=cfg.rows;k++)s.add(`${4*g+2},${2*k}`);
+    for(let k=1;k<=cfg.rows;k++)s.add(`${4*g},${2*k}`);
+  }
+  return s;
+}
+function buildCross(blank){
+  const s=new Set();
+  for(let g=0;g<cfg.cols;g++)
+    for(let k=1;k<=cfg.rows;k++)
+      [`${4*g+2},${2*k}`,`${4*g},${2*k}`].forEach(k2=>blank.has(k2)&&s.add(k2));
+  return s;
+}
+
+// ═══════════════════════════════════════════════════
+//  MATEMATIKA — EFEKTIVNÍ (bez brute-force smyčky)
+// ═══════════════════════════════════════════════════
+function applyOp(op,a,b){
+  let r;
+  if(op==='+')r=a+b;
+  else if(op==='-')r=a-b;
+  else if(op==='*')r=a*b;
+  else if(op==='/'){if(!b||a%b)return null;r=a/b;}
+  else return null;
+  return(r>=cfg.min&&r<=cfg.max)?r:null;
+}
+
+function solveB(op,a,res){
+  let b;
+  if(op==='+')b=res-a;
+  else if(op==='-')b=a-res;
+  else if(op==='*'){if(!a||res%a)return null;b=res/a;}
+  else if(op==='/'){if(!res||a%res)return null;b=a/res;if(!b||a!==res*b)return null;}
+  else return null;
+  return(Number.isInteger(b)&&b>=cfg.min&&b<=cfg.max)?b:null;
+}
+
+/**
+ * Vybere náhodnou V rovnici (a op b = result) efektivně
+ * bez iterace celého rozsahu.
+ */
+function pickV(a,R){
+  for(const op of R.shuf(cfg.ops)){
+    if(op==='+'){
+      // b ∈ [min, max],  a+b ∈ [min, max]  →  b ∈ [min-a, max-a]
+      const lo=Math.max(cfg.min,cfg.min-a), hi=Math.min(cfg.max,cfg.max-a);
+      if(lo<=hi){const b=R.int(lo,hi);return{op,b,result:a+b};}
+    }else if(op==='-'){
+      // a-b ∈ [min, max]  →  b ∈ [a-max, a-min]
+      const lo=Math.max(cfg.min,a-cfg.max), hi=Math.min(cfg.max,a-cfg.min);
+      if(lo<=hi){const b=R.int(lo,hi);return{op,b,result:a-b};}
+    }else if(op==='*'){
+      if(a===0){
+        // 0*b=0; platné jen pokud 0 ∈ [min,max]
+        if(cfg.min===0){const b=R.int(cfg.min,cfg.max);return{op,b,result:0};}
+        continue;
+      }
+      // b ∈ [ceil(min/a), floor(max/a)] ∩ [min, max]
+      const lo=Math.max(cfg.min,Math.ceil(cfg.min/a));
+      const hi=Math.min(cfg.max,Math.floor(cfg.max/a));
+      if(lo<=hi){const b=R.int(lo,hi);return{op,b,result:a*b};}
+    }else if(op==='/'){
+      if(a===0){
+        // 0/b=0; b libovolné ≠ 0
+        if(cfg.min===0){const b=R.int(Math.max(1,cfg.min),cfg.max);return{op,b,result:0};}
+        continue;
+      }
+      // Najdi dělitele a ∈ [max(1,min), max], kde a/dělitel ∈ [min, max]
+      const divs=[];
+      const dLo=Math.max(1,cfg.min);
+      for(let d=1;d*d<=a;d++){
+        if(a%d===0){
+          const d2=a/d;
+          // pár (b=d, result=d2)
+          if(d>=dLo&&d<=cfg.max&&d2>=cfg.min&&d2<=cfg.max)divs.push([d,d2]);
+          // pár (b=d2, result=d)
+          if(d!==d2&&d2>=dLo&&d2<=cfg.max&&d>=cfg.min&&d<=cfg.max)divs.push([d2,d]);
+        }
+      }
+      if(divs.length){const[b,result]=R.pick(divs);return{op,b,result};}
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+//  GENERÁTOR
+// ═══════════════════════════════════════════════════
+function generate(R){
+  function pickH(a,res){
+    for(const op of R.shuf(cfg.ops)){const b=solveB(op,a,res);if(b!==null)return{op,b};}
+    return null;
+  }
+  for(let att=0;att<6000;att++){
+    const node={},hOps={},vOps={};
+    let ok=true;
+    outer:
+    for(let g=0;g<cfg.cols;g++){
+      for(const co of[0,2]){
+        const c=4*g+co;
+        for(let vr=0;vr<cfg.rows;vr++){
+          const[ra,rb,rr]=[2*vr,2*vr+1,2*vr+2],ka=`${c},${ra}`;
+          if(!(ka in node))node[ka]=R.int(cfg.min,cfg.max);
+          const v=pickV(node[ka],R);
+          if(!v){ok=false;break outer;}
+          node[`${c},${rb}`]=v.b;node[`${c},${rr}`]=v.result;vOps[`${c},${vr}`]=v.op;
+        }
+      }
+    }
+    if(!ok)continue;
+    let ok2=true;
+    for(let g=0;g<cfg.cols&&ok2;g++){
+      const[ca,cb,cr]=[4*g,4*g+1,4*g+2];
+      for(let k=0;k<=cfg.rows&&ok2;k++){
+        const r=2*k,h=pickH(node[`${ca},${r}`],node[`${cr},${r}`]);
+        if(!h){ok2=false;break;}
+        node[`${cb},${r}`]=h.b;hOps[`${g},${k}`]=h.op;
+      }
+    }
+    if(ok2)return{node,hOps,vOps};
+  }
+  throw new Error('Nepodařilo se vygenerovat hádanku.\nZkus více operací nebo širší rozsah čísel.');
+}
+
+// ═══════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════
+function sizes(){
+  const nc=NC(),nr=NR();
+  const hdr=document.querySelector('header').offsetHeight
+           +document.getElementById('settings').offsetHeight
+           +document.getElementById('status').offsetHeight;
+  const aw=window.innerWidth-14,ah=window.innerHeight-hdr-12;
+  const fW=(nc+1)+nc*0.34,fH=(nr+1)+nr*0.34;
+  const cs=Math.max(28,Math.min(78,Math.floor(Math.min(aw/fW,ah/fH))));
+  const os=Math.max(11,Math.floor(cs*0.33));
+  // Font-size závisí na počtu číslic
+  const digits=String(cfg.max).length;
+  const fs=Math.max(8,Math.floor(cs*(digits<=2?.42:digits<=4?.34:digits<=6?.26:.20)));
+  return{cs,os,fs,nc,nr};
+}
+
+function render(){
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  if(!puzzle)return;
+  const{cs,os,fs,nc,nr}=sizes();
+  const{node,hOps,vOps}=puzzle;
+  grid.style.gridTemplateColumns=Array(nc).fill(`${cs}px ${os}px`).join(' ')+` ${cs}px`;
+  grid.style.gridTemplateRows   =Array(nr).fill(`${cs}px ${os}px`).join(' ')+` ${cs}px`;
+
+  for(let c=0;c<=nc;c++){
+    for(let r=0;r<=nr;r++){
+      if(isBlack(c,r))continue;
+      const key=`${c},${r}`,d=document.createElement('div');
+      d.style.gridColumn=2*c+1;d.style.gridRow=2*r+1;
+      d.style.fontSize=fs+'px';
+      d.style.borderRadius=Math.max(4,Math.floor(cs*.13))+'px';
+      if(BLANK.has(key)){
+        let cl='cell blank'+(CROSS.has(key)?' cross':'');
+        const ua=answers[key];
+        if(ua!==undefined)cl+=' filled';
+        if(feedback){if(feedback[key]===true)cl+=' correct';else if(feedback[key]===false)cl+=' wrong';}
+        if(activeKey===key)cl+=' active-cell';
+        d.className=cl;d.textContent=ua!==undefined?ua:'';
+        d.addEventListener('click',()=>openPicker(key));
+      }else{d.className='cell given';d.textContent=node[key];}
+      grid.appendChild(d);
+    }
+  }
+  const opFs=Math.max(8,Math.floor(fs*.68))+'px';
+  function addOp(col,row,sym){
+    const d=document.createElement('div');
+    d.className='op';d.textContent=sym;
+    d.style.gridColumn=col;d.style.gridRow=row;d.style.fontSize=opFs;
+    grid.appendChild(d);
+  }
+  for(let g=0;g<cfg.cols;g++){
+    const[ca,cb]=[4*g,4*g+1];
+    for(let k=0;k<=cfg.rows;k++){
+      const r=2*k,op=hOps[`${g},${k}`];
+      addOp(2*ca+2,2*r+1,SYM[op]);addOp(2*cb+2,2*r+1,'=');
+    }
+  }
+  for(let g=0;g<cfg.cols;g++){
+    for(const co of[0,2]){
+      const c=4*g+co;
+      for(let vr=0;vr<cfg.rows;vr++){
+        const[ra,rb]=[2*vr,2*vr+1],op=vOps[`${c},${vr}`];
+        addOp(2*c+1,2*ra+2,SYM[op]);addOp(2*c+1,2*rb+2,'=');
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  PICKER
+// ═══════════════════════════════════════════════════
+function openPicker(key){
+  activeKey=key;feedback=null;
+  const ua=answers[key];
+  const inp=document.getElementById('picker-inp');
+  inp.min=cfg.min;inp.max=cfg.max;
+  inp.value=ua!==undefined?ua:'';
+  inp.placeholder=`${cfg.min} – ${cfg.max}`;
+  inp.classList.remove('err');
+
+  // Tlačítka jen pro malý rozsah
+  const count=cfg.max-cfg.min+1;
+  const nums=document.getElementById('picker-nums');
+  nums.innerHTML='';
+  if(count<=40){
+    const bw=count<=11?58:count<=21?50:44;
+    for(let n=cfg.min;n<=cfg.max;n++){
+      const b=document.createElement('button');
+      b.className='num-btn'+(ua===n?' current':'');
+      b.textContent=n;
+      b.style.width=b.style.height=bw+'px';
+      b.style.fontSize=Math.floor(bw*.40)+'px';
+      b.addEventListener('click',()=>selectNum(n));
+      nums.appendChild(b);
+    }
+    nums.style.display='flex';
+  }else{
+    nums.style.display='none';
+  }
+
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>inp.focus(),280);
+  render();
+}
+
+function pickerKey(e){
+  if(e.key==='Enter')confirmInp();
+  if(e.key==='Escape')closePicker();
+}
+
+function confirmInp(){
+  const inp=document.getElementById('picker-inp');
+  const raw=inp.value.trim();
+  if(raw===''){clearCell();return;}
+  const val=parseInt(raw,10);
+  if(isNaN(val)||val<cfg.min||val>cfg.max){
+    inp.classList.add('err');
+    setTimeout(()=>inp.classList.remove('err'),700);
+    return;
+  }
+  selectNum(val);
+}
+
+function selectNum(n){
+  if(activeKey===null)return;
+  answers[activeKey]=n;feedback=null;
+  document.getElementById('overlay').classList.remove('open');
+  activeKey=null;render();autoCheck();
+}
+
+function clearCell(){
+  if(activeKey===null)return;
+  delete answers[activeKey];feedback=null;
+  document.getElementById('overlay').classList.remove('open');
+  activeKey=null;render();setStatus('');
+}
+
+function closePicker(){
+  document.getElementById('overlay').classList.remove('open');
+  activeKey=null;render();
+}
+
+function overlayClick(e){
+  if(e.target===document.getElementById('overlay'))closePicker();
+}
+
+// ═══════════════════════════════════════════════════
+//  KONTROLA
+// ═══════════════════════════════════════════════════
+function autoCheck(){
+  const total=[...BLANK].length;
+  const filled=[...BLANK].filter(k=>answers[k]!==undefined).length;
+  if(filled>=total)checkAnswers();
+  else setStatus(`Vyplněno: ${filled} / ${total}`);
+}
+
+function checkAnswers(){
+  if(!puzzle)return;
+  feedback={};let correct=0,total=0;
+  for(const key of BLANK){
+    total++;
+    const ua=answers[key];
+    if(ua===undefined){feedback[key]=false;continue;}
+    feedback[key]=(ua===puzzle.node[key]);
+    if(feedback[key])correct++;
+  }
+  render();
+  if(correct===total)setStatus('🎉 Výborně! Všechno správně!','win');
+  else setStatus(`Správně: ${correct} / ${total}  ·  ${total-correct} chyb — zkus znovu!`,'error');
+}
+
+function setStatus(msg,cls=''){
+  const el=document.getElementById('status');
+  el.textContent=msg;el.className=cls;
+}
+
+// ═══════════════════════════════════════════════════
+//  PDF EXPORT
+// ═══════════════════════════════════════════════════
+function buildPageHTML(answerMode){
+  const nc=NC(),nr=NR();
+  const land=cfg.cols>=3;
+  const pgW=land?262:180,pgH=land?180:257;
+  const fW=(nc+1)+nc*0.34,fH=(nr+1)+nr*0.34;
+  const cs=Math.min(pgW/fW,pgH*.80/fH);
+  const os=cs*.34,bw=cs*.038,br=cs*.13;
+  const digits=String(cfg.max).length;
+  const fs=cs*(digits<=2?.42:digits<=4?.34:digits<=6?.26:.20);
+  const f=n=>`${n.toFixed(2)}mm`;
+  const ct=Array(nc).fill(`${f(cs)} ${f(os)}`).join(' ')+` ${f(cs)}`;
+  const rt=Array(nr).fill(`${f(cs)} ${f(os)}`).join(' ')+` ${f(cs)}`;
+  const{node,hOps,vOps}=puzzle;
+  const base=`display:flex;align-items:center;justify-content:center;font-weight:800;border-radius:${f(br)};font-size:${f(fs)};`;
+  const opSt=`display:flex;align-items:center;justify-content:center;font-weight:700;color:#94a3b8;font-size:${f(fs*.66)};`;
+  let cells='';
+  for(let c=0;c<=nc;c++){
+    for(let r=0;r<=nr;r++){
+      if(isBlack(c,r))continue;
+      const key=`${c},${r}`,gc=2*c+1,gr=2*r+1;
+      const pos=`grid-column:${gc};grid-row:${gr};`;
+      if(BLANK.has(key)){
+        const val=answerMode?node[key]:(answers[key]!==undefined?answers[key]:'');
+        const cross=CROSS.has(key);
+        const bc=answerMode?'#2952cc':(cross?'#f59e0b':'#334155');
+        const bg=answerMode?'#dde6ff':'#fff';
+        cells+=`<div style="${base}${pos}background:${bg};border:${f(bw)} solid ${bc};color:${answerMode?'#2952cc':'#334155'}">${val}</div>`;
+      }else{
+        cells+=`<div style="${base}${pos}background:#e2e8f0;color:#334155">${node[key]}</div>`;
+      }
+    }
+  }
+  for(let g=0;g<cfg.cols;g++){
+    const[ca,cb]=[4*g,4*g+1];
+    for(let k=0;k<=cfg.rows;k++){
+      const r=2*k,op=hOps[`${g},${k}`];
+      cells+=`<div style="${opSt}grid-column:${2*ca+2};grid-row:${2*r+1}">${SYM[op]}</div>`;
+      cells+=`<div style="${opSt}grid-column:${2*cb+2};grid-row:${2*r+1}">=</div>`;
+    }
+  }
+  for(let g=0;g<cfg.cols;g++){
+    for(const co of[0,2]){
+      const c=4*g+co;
+      for(let vr=0;vr<cfg.rows;vr++){
+        const[ra,rb]=[2*vr,2*vr+1],op=vOps[`${c},${vr}`];
+        cells+=`<div style="${opSt}grid-column:${2*c+1};grid-row:${2*ra+2}">${SYM[op]}</div>`;
+        cells+=`<div style="${opSt}grid-column:${2*c+1};grid-row:${2*rb+2}">=</div>`;
+      }
+    }
+  }
+  const ops=cfg.ops.map(o=>SYM[o]).join(' · ');
+  const title=answerMode?'Řešení — správné odpovědi':'Matematická křížovka 🐍';
+  const hint=answerMode
+    ?'Modré = doplňovalo dítě  ·  Zlatý rámeček = průnik dvou rovnic'
+    :'Doplň prázdná políčka — rovnice platí vodorovně i svisle!';
+  return`<div style="font-family:Helvetica,Arial,sans-serif;text-align:center;margin-bottom:5mm">
+  <div style="font-size:5.5mm;font-weight:900;color:#2952cc;margin-bottom:1.5mm">${title}</div>
+  <div style="font-size:3mm;color:#64748b;margin-bottom:1mm">Operace: ${ops} · Hodnoty: ${cfg.min}–${cfg.max} · Skupiny: ${cfg.cols} · Řetězení: ${cfg.rows}</div>
+  <div style="font-size:2.8mm;color:#94a3b8">${hint}</div>
+</div>
+<div style="display:grid;font-family:Helvetica,Arial,sans-serif;grid-template-columns:${ct};grid-template-rows:${rt}">${cells}</div>`;
+}
+
+function exportPDF(){
+  if(!puzzle){alert('Nejprve vygeneruj hádanku!');return;}
+  const land=cfg.cols>=3;
+  const pg=land?'A4 landscape':'A4 portrait';
+  const html=`<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+@page{size:${pg};margin:15mm;}
+body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.page{page-break-after:always;display:flex;flex-direction:column;align-items:center;}
+.page:last-child{page-break-after:auto;}
+@media screen{
+  body{background:#f0f4ff;padding:20px;display:flex;flex-direction:column;gap:24px;align-items:center;}
+  .hint{font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#64748b;background:#fff;
+    padding:10px 20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);text-align:center;max-width:600px;}
+  .hint strong{color:#2952cc;}
+  .page{background:#fff;padding:15mm;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.10);width:fit-content;}
+}
+</style></head><body>
+<div class="hint"><strong>iPad:</strong> ⬆ Sdílet → Tisk → stiskni a drž náhled → Sdílet → Uložit do Souborů<br>
+<strong>Mac:</strong> ⌘P → Uložit jako PDF</div>
+<div class="page">${buildPageHTML(false)}</div>
+<div class="page">${buildPageHTML(true)}</div>
+</body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank');
+  if(!win){const a=document.createElement('a');a.href=url;a.download='krizovka.html';a.click();}
+  setTimeout(()=>URL.revokeObjectURL(url),90000);
+}
+
+// ═══════════════════════════════════════════════════
+//  NOVÁ HRA
+// ═══════════════════════════════════════════════════
+function newGame(){
+  answers={};feedback=null;activeKey=null;
+  setStatus('');
+  document.getElementById('overlay').classList.remove('open');
+  const ld=document.getElementById('loading');
+  ld.classList.add('on');
+  setTimeout(()=>{
+    try{
+      puzzle=generate(rng());BLANK=buildBlank();CROSS=buildCross(BLANK);
+      render();setStatus(`Vyplněno: 0 / ${BLANK.size}`);
+    }catch(e){
+      setStatus(e.message,'error');
+      document.getElementById('grid').innerHTML='';
+    }finally{ld.classList.remove('on');}
+  },30);
+}
+
+// ═══════════════════════════════════════════════════
+//  NASTAVENÍ
+// ═══════════════════════════════════════════════════
+function toggleOp(btn){
+  const op=btn.dataset.op;
+  if(cfg.ops.includes(op)){
+    if(cfg.ops.length<=1)return;
+    cfg.ops=cfg.ops.filter(o=>o!==op);btn.classList.remove('on');
+  }else{cfg.ops.push(op);btn.classList.add('on');}
+}
+
+// Tlačítka +/- pro všechna pole
+function adj(what,d){
+  const ids={min:'minVal',max:'maxVal',cols:'colsVal',rows:'rowsVal'};
+  const el=document.getElementById(ids[what]);
+  // Pro input čteme .value, pro span .textContent
+  const cur=parseInt(el.value!==undefined&&el.tagName==='INPUT'?el.value:el.textContent,10)||0;
+  let v=cur+d;
+  if(what==='min') {if(v<0||v>=cfg.max-1)return;cfg.min=v;}
+  if(what==='max') {if(v<=cfg.min+1||v>MAX_ALLOWED)return;cfg.max=v;}
+  if(what==='cols'){if(v<1||v>4)return;cfg.cols=v;}
+  if(what==='rows'){if(v<2||v>5)return;cfg.rows=v;}
+  if(el.tagName==='INPUT')el.value=v;else el.textContent=v;
+}
+
+// Přímý vstup klávesnicí pro min/max
+function onSI(what,el){
+  const v=parseInt(el.value,10);
+  if(isNaN(v)){el.value=what==='min'?cfg.min:cfg.max;return;}
+  if(what==='min'){
+    if(v<0||v>=cfg.max-1){el.value=cfg.min;return;}
+    cfg.min=v;
+  }else{
+    if(v<=cfg.min+1||v>MAX_ALLOWED){el.value=cfg.max;return;}
+    cfg.max=v;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  RESIZE & START
+// ═══════════════════════════════════════════════════
+let rT;
+window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(render,150);});
+newGame();
+</script>
+</body>
+</html>

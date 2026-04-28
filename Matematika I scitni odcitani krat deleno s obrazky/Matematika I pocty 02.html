@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Matematická křížovka</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  /* ── Math Crossword color palette ── */
+  --bg:       #C8DFF2;   /* světle modrý podklad */
+  --surface:  #FFFFFF;
+  --cell:     #FBF4D6;   /* teplá písková — zadané buňky */
+  --cborder:  #C8A441;   /* zlatohnědý okraj */
+  --blank-b:  #1A237E;   /* tmavě navy rámeček prázdné */
+  --op-bg:    #FBF4D6;   /* operátory = stejně jako zadané */
+  --op-b:     #C8A441;
+  --text:     #1A237E;   /* dark navy text */
+  --text2:    #5C6BC0;
+
+  /* header */
+  --h1:       #E65100;
+  --h2:       #F57C00;
+
+  /* bank */
+  --bank-bg:  #E8F5E9;
+  --bank-b:   #81C784;
+  --tile-bg:  #43A047;
+  --tile-b:   #2E7D32;
+
+  /* feedback */
+  --green:    #2E7D32;
+  --gfade:    #E8F5E9;
+  --red:      #C62828;
+  --rfade:    #FFEBEE;
+  --amber:    #F57F17;
+  --afade:    #FFF8E1;
+
+  /* hint bar */
+  --hint-bg:  #E3F2FD;
+  --hint-b:   #90CAF9;
+
+  /* reward */
+  --star:     #FFD600;
+}
+
+body{font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ──────────────────────────── */
+header{
+  background:linear-gradient(135deg,var(--h1) 0%,var(--h2) 100%);
+  color:#fff;padding:9px 12px;display:flex;align-items:center;gap:7px;
+  box-shadow:0 2px 10px rgba(230,81,0,.35);flex-shrink:0;z-index:10;}
+header h1{flex:1;font-size:clamp(13px,2.4vw,18px);font-weight:900;letter-spacing:-.3px;}
+.hbtn{background:rgba(255,255,255,.20);border:1.5px solid rgba(255,255,255,.40);
+  color:#fff;padding:6px 11px;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;}
+.hbtn:active{background:rgba(255,255,255,.40);}
+.hbtn.check{background:rgba(255,255,255,.92);color:var(--h1);}
+.hbtn.pdf  {background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);}
+
+/* ── SETTINGS ────────────────────────── */
+#settings{background:#FFF8F0;border-bottom:2px solid var(--cborder);
+  padding:7px 12px;display:flex;flex-wrap:wrap;gap:6px 13px;
+  align-items:flex-end;flex-shrink:0;}
+.sg{display:flex;flex-direction:column;gap:3px;}
+.slabel{font-size:9px;font-weight:700;color:var(--h1);
+  text-transform:uppercase;letter-spacing:.7px;}
+.ops{display:flex;gap:4px;}
+.opbtn{width:34px;height:34px;border:2px solid var(--cborder);border-radius:8px;
+  background:var(--cell);font-size:16px;font-weight:800;cursor:pointer;
+  touch-action:manipulation;color:var(--text);display:flex;align-items:center;
+  justify-content:center;transition:all .15s;-webkit-tap-highlight-color:transparent;}
+.opbtn.on{border-color:var(--h1);background:#FFE0CC;color:var(--h1);}
+.stepper{display:flex;align-items:center;background:var(--cell);
+  border:1.5px solid var(--cborder);border-radius:8px;overflow:hidden;}
+.stepper button{width:28px;height:32px;border:none;background:transparent;
+  font-size:16px;font-weight:700;color:var(--h1);cursor:pointer;
+  touch-action:manipulation;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.stepper button:active{background:#FFE0CC;}
+.stepper span{min-width:24px;text-align:center;font-size:13px;font-weight:700;
+  color:var(--text);border-left:1px solid var(--cborder);border-right:1px solid var(--cborder);
+  height:32px;line-height:32px;}
+.stepper-inp{width:66px;height:32px;border:none;
+  border-left:1px solid var(--cborder);border-right:1px solid var(--cborder);
+  background:transparent;text-align:center;font-size:12px;font-weight:700;
+  color:var(--text);padding:0 3px;outline:none;-moz-appearance:textfield;}
+.stepper-inp::-webkit-inner-spin-button,
+.stepper-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.stepper-inp:focus{background:#FFF3E0;}
+
+/* score badge */
+#score-badge{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.25);
+  border:1.5px solid rgba(255,255,255,.45);border-radius:9px;
+  padding:5px 10px;font-size:13px;font-weight:800;color:#fff;white-space:nowrap;}
+#score-badge .star{font-size:15px;}
+
+/* ── STATUS ──────────────────────────── */
+#status{text-align:center;padding:3px 12px;font-size:12px;font-weight:600;
+  color:var(--text2);flex-shrink:0;min-height:22px;transition:color .2s;}
+#status.win  {color:var(--green);}
+#status.error{color:var(--red);}
+
+/* ── MAIN ────────────────────────────── */
+main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  padding:0;overflow:hidden;position:relative;}
+#grid{display:block;position:relative;}
+
+/* ── CELLS ───────────────────────────── */
+.cell{display:flex;align-items:center;justify-content:center;font-weight:900;
+  user-select:none;-webkit-user-select:none;
+  transition:transform .1s,background .12s;}
+.cell.given{background:var(--cell);border:2px solid var(--cborder);color:var(--text);}
+.cell.blank{background:var(--surface);border:2.5px solid var(--blank-b);
+  color:var(--text2);cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.cell.blank:active{transform:scale(.92);background:#EEF2FF;}
+.cell.blank.cross{border-color:var(--amber);border-width:2.5px;}
+.cell.blank.filled{border-color:var(--text2);}
+.cell.blank.correct{background:var(--gfade);border-color:var(--green);color:var(--green);}
+.cell.blank.wrong  {background:var(--rfade); border-color:var(--red);  color:var(--red);}
+.cell.active-cell{outline:3px solid var(--amber);outline-offset:2px;
+  animation:pulse .7s ease infinite;}
+@keyframes pulse{0%,100%{outline-color:var(--amber);}50%{outline-color:#FFCC0299;}}
+
+.op{display:flex;align-items:center;justify-content:center;
+  font-weight:900;color:var(--text);
+  background:var(--op-bg);
+  border:1.8px solid var(--op-b);
+  border-radius:var(--op-rx,8px);}
+
+/* ── EQ HINT BAR ─────────────────────── */
+#eq-hint{background:var(--hint-bg);border-bottom:1.5px solid var(--hint-b);
+  padding:4px 12px;display:flex;align-items:flex-start;
+  gap:5px;flex-shrink:0;
+  flex-wrap:wrap;          /* rovnice se zalamují */
+  max-height:90px;         /* omezená výška */
+  overflow-y:auto;         /* svislý posuvník pokud je víc */
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;}
+#eq-hint:empty{display:none;}
+.eh-eq{display:flex;align-items:center;gap:4px;margin:2px 6px 2px 0;white-space:nowrap;}
+.eh-dir{font-size:12px;font-weight:700;color:var(--h1);margin-right:2px;}
+.eh-val{font-size:14px;font-weight:800;color:var(--text);
+  background:var(--cell);border-radius:5px;padding:1px 6px;
+  border:1px solid var(--cborder);}
+.eh-sym{font-size:14px;font-weight:700;color:var(--text);}
+.eh-tgt{font-size:14px;font-weight:900;color:var(--h1);
+  background:#FFF3E0;border:2px solid var(--h1);
+  border-radius:5px;padding:1px 6px;min-width:24px;text-align:center;}
+
+/* ── NUMBER BANK ─────────────────────── */
+#bank-wrap{flex-shrink:0;background:var(--bank-bg);
+  border-top:2px solid var(--bank-b);
+  padding:6px 10px calc(max(6px,env(safe-area-inset-bottom)));}
+#bank-label{font-size:9px;font-weight:700;color:var(--tile-b);
+  text-transform:uppercase;letter-spacing:.6px;text-align:center;margin-bottom:4px;}
+#bank{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;
+  max-height:108px;overflow-y:auto;}
+.btile{height:42px;min-width:42px;padding:0 5px;
+  background:var(--tile-bg);color:#fff;border-radius:9px;
+  font-weight:900;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:2.5px solid var(--tile-b);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:all .12s;user-select:none;-webkit-user-select:none;}
+.btile:active{transform:scale(.86);}
+.btile.used{background:#A5D6A7;border-color:#81C784;color:#81C784;
+  pointer-events:none;opacity:.5;}
+.btile.sel{background:#fff;color:var(--tile-b);border-color:var(--tile-bg);
+  box-shadow:0 0 0 3px rgba(67,160,71,.35);transform:translateY(-3px);}
+
+/* ── REWARD OVERLAY ──────────────────── */
+#reward{display:none;position:fixed;inset:0;z-index:400;
+  background:rgba(0,0,0,.55);align-items:center;justify-content:center;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
+#reward.show{display:flex;}
+#reward-box{background:#FFF8E1;border:3px solid var(--star);border-radius:20px;
+  padding:24px 28px;max-width:320px;width:90%;text-align:center;
+  animation:popIn .35s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes popIn{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+#reward-stars{font-size:44px;letter-spacing:4px;animation:spin-stars 1.2s ease;}
+@keyframes spin-stars{0%{transform:rotate(-15deg) scale(.8)}50%{transform:rotate(8deg) scale(1.1)}100%{transform:rotate(0deg) scale(1)}}
+#reward-title{font-size:22px;font-weight:900;color:var(--h1);margin:10px 0 4px;}
+#reward-sub  {font-size:14px;color:#5D4037;margin-bottom:16px;}
+#reward-score{font-size:28px;font-weight:900;color:var(--tile-b);margin-bottom:14px;}
+/* Checkbox style */
+.reward-check-wrap{display:flex;align-items:center;justify-content:center;
+  gap:9px;margin-bottom:16px;cursor:pointer;}
+.reward-check-wrap input[type=checkbox]{width:22px;height:22px;cursor:pointer;
+  accent-color:var(--tile-bg);}
+.reward-check-wrap label{font-size:14px;font-weight:700;color:#2E7D32;cursor:pointer;}
+#reward-btn{width:100%;padding:12px;border:none;border-radius:12px;
+  font-size:16px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;
+  touch-action:manipulation;}
+#reward-btn:active{opacity:.8;}
+
+/* ── LOADING ─────────────────────────── */
+#loading{display:none;position:fixed;inset:0;background:rgba(200,223,242,.85);
+  z-index:300;align-items:center;justify-content:center;flex-direction:column;
+  gap:10px;font-weight:700;color:var(--h1);font-size:14px;}
+#loading.on{display:flex;}
+.spinner{width:32px;height:32px;border:4px solid #FFE0CC;
+  border-top-color:var(--h1);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MANUAL INPUT MODE ─────────────────────────────── */
+#manual-overlay{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.45);align-items:flex-end;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+#manual-overlay.open{display:flex;}
+#manual-box{background:#FFF8F0;border-radius:22px 22px 0 0;width:100%;
+  padding:16px 16px calc(max(16px,env(safe-area-inset-bottom)));
+  box-shadow:0 -6px 40px rgba(0,0,0,.18);animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#manual-eq{font-size:13px;font-weight:700;color:var(--h1);
+  text-align:center;margin-bottom:8px;line-height:1.5;
+  max-height:110px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.meq-row{display:flex;align-items:center;justify-content:center;gap:6px;
+  flex-wrap:wrap;margin-bottom:3px;}
+.meq-val{background:var(--cell);border:1.5px solid var(--cborder);
+  border-radius:7px;padding:3px 10px;font-size:16px;font-weight:800;color:var(--text);}
+.meq-sym{font-size:16px;font-weight:700;color:var(--text);}
+.meq-tgt{background:#FFF3E0;border:2.5px solid var(--h1);border-radius:7px;
+  padding:3px 12px;font-size:16px;font-weight:900;color:var(--h1);min-width:40px;text-align:center;}
+#manual-inp{width:100%;height:56px;border:2.5px solid var(--cborder);border-radius:14px;
+  font-size:26px;font-weight:900;text-align:center;color:var(--text);
+  background:var(--cell);outline:none;margin-bottom:10px;
+  -moz-appearance:textfield;}
+#manual-inp::-webkit-inner-spin-button,#manual-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+#manual-inp:focus{border-color:var(--h1);background:#FFF3E0;}
+#manual-inp.err{border-color:var(--red);background:var(--rfade);}
+.manual-btns{display:flex;gap:8px;}
+.mbtn{flex:1;height:48px;border:none;border-radius:12px;font-size:15px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.mbtn:active{opacity:.75;}
+.mbtn.del{background:var(--given);color:var(--gray);border:1.5px solid var(--cborder);}
+.mbtn.ok{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;}
+
+/* ── MODE TOGGLE CHECKBOX ─────────────────────────── */
+#mode-wrap{display:flex;align-items:center;gap:8px;
+  padding:7px 12px;  /* stejný padding jako #settings */
+  background:#FFF8F0;border-bottom:1.5px solid var(--cborder);flex-shrink:0;
+  min-height:50px;}  /* zarovná výšku s řádkem operátorů */
+#mode-wrap label{font-size:12px;font-weight:700;color:var(--h1);cursor:pointer;user-select:none;white-space:nowrap;}
+#mode-chk{width:22px;height:22px;cursor:pointer;accent-color:var(--h1);flex-shrink:0;}
+#mode-desc{font-size:11px;color:var(--gray);flex:1;}
+
+
+/* ── ANIMAL BACKGROUND ─────────────────────────────── */
+#animal-bg{
+  position:fixed;
+  z-index:0;
+  pointer-events:none;
+  user-select:none;
+  line-height:1;
+  opacity:1;
+  transition:opacity .3s, font-size .3s;
+}
+body > *:not(#animal-bg){position:relative;z-index:1;}
+
+</style>
+</head>
+<body>
+<div id="animal-bg" aria-hidden="true"></div>
+
+<header>
+  <h1>🐍 Matematická křížovka</h1>
+  <div id="score-badge"><span class="star">⭐</span><span id="score-val">0</span></div>
+  <a class="hbtn" href="../index.html">🏠 Domů</a>
+  <button class="hbtn check" onclick="checkAnswers()">Zkontrolovat</button>
+  <button class="hbtn pdf"   onclick="exportPDF()">📄 10× PDF</button>
+  <button class="hbtn"       onclick="newGame()">🔄 Nová</button>
+</header>
+
+<div id="settings">
+  <div class="sg">
+    <div class="slabel">Operace</div>
+    <div class="ops">
+      <button class="opbtn on" data-op="+" onclick="toggleOp(this)">+</button>
+      <button class="opbtn on" data-op="-" onclick="toggleOp(this)">−</button>
+      <button class="opbtn"    data-op="*" onclick="toggleOp(this)">×</button>
+      <button class="opbtn"    data-op="/" onclick="toggleOp(this)">÷</button>
+    </div>
+  </div>
+
+  <!-- Min — klávesnice i tlačítka -->
+  <div class="sg">
+    <div class="slabel">Min. číslo</div>
+    <div class="stepper">
+      <button onclick="adj('min',-1)">−</button>
+      <input class="stepper-inp" id="minVal" type="number" value="0"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('min',this)" onfocus="this.select()">
+      <button onclick="adj('min',+1)">+</button>
+    </div>
+  </div>
+
+  <!-- Max — klávesnice i tlačítka -->
+  <div class="sg">
+    <div class="slabel">Max. číslo</div>
+    <div class="stepper">
+      <button onclick="adj('max',-1)">−</button>
+      <input class="stepper-inp" id="maxVal" type="number" value="10"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('max',this)" onfocus="this.select()">
+      <button onclick="adj('max',+1)">+</button>
+    </div>
+  </div>
+
+  <div class="sg">
+    <div class="slabel">Rovnic (1–30)</div>
+    <div class="stepper">
+      <button onclick="adj('teqs',-1)">−</button>
+      <span id="teqsVal">12</span>
+      <button onclick="adj('teqs',+1)">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODE TOGGLE -->
+<div id="mode-wrap">
+  <input type="checkbox" id="mode-chk" checked onchange="toggleMode(this.checked)">
+  <label for="mode-chk">Banka čísel</label>
+  <span id="mode-desc">Čísla jsou připravena dole — přetáhni do políčka</span>
+</div>
+
+<div id="status"></div>
+<main><div id="grid"></div></main>
+
+    
+    
+    <div id="picker-actions">
+      <button class="pbtn del"  onclick="clearCell()">✕ Smazat</button>
+      <button class="pbtn done" onclick="confirmInp()">Potvrdit</button>
+    </div>
+  </div>
+</div>
+
+<div id="eq-hint"></div>
+
+<div id="bank-wrap">
+  <div id="bank-label">Dostupná čísla — vyber a umísti do křížovky</div>
+  <div id="bank"></div>
+</div>
+
+<!-- REWARD OVERLAY -->
+<div id="reward">
+  <div id="reward-box">
+    <div id="reward-stars">⭐⭐⭐</div>
+    <div id="reward-title">Skvělá práce!</div>
+    <div id="reward-sub" id="reward-sub">Získal jsi odměnu za 5 správných odpovědí!</div>
+    <div id="reward-score">+50 bodů</div>
+    <div class="reward-check-wrap">
+      <input type="checkbox" id="reward-want" checked>
+      <label for="reward-want">Chci odměnu!</label>
+    </div>
+    <button id="reward-btn" onclick="closeReward()">Pokračovat 🎯</button>
+  </div>
+</div>
+
+<!-- MANUAL INPUT OVERLAY -->
+<div id="manual-overlay" onclick="manualOverlayClick(event)">
+  <div id="manual-box">
+    <div id="manual-eq"></div>
+    <input id="manual-inp" type="number" inputmode="numeric" pattern="[0-9]*"
+           placeholder="zadej číslo" onkeydown="manualKey(event)"
+           oninput="updateManualEq(this.value)">
+    <div class="manual-btns">
+      <button class="mbtn del" onclick="manualClear()">✕ Smazat</button>
+      <button class="mbtn ok"  onclick="manualConfirm()">Potvrdit ✓</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading"><div class="spinner"></div><span>Generuji…</span></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  KONFIGURACE & STAV
+// ═══════════════════════════════════════════════════
+const SYM = {'+':'+', '-':'−', '*':'×', '/':'÷'};
+const MAX_ALLOWED = 1_000_000;
+let cfg = { ops:['+','-'], min:0, max:10, targetEqs:12 };
+
+// Stav hry
+let puzzle     = null;
+let BLANK      = null;
+let CROSS      = null;
+let answers    = {};    // cellKey → value (number)
+let answerBank = {};    // cellKey → bankIdx
+let bankTiles  = [];    // [{value, used}]
+let activeCellKey   = null;   // aktuálně vybraná buňka
+let selBankIdx      = null;   // vybraná tile v bance (bez aktivní buňky)
+let feedback        = null;   // cellKey → bool | null
+let bankMode        = true;    // true=banka, false=ruční vstup
+let scoreTotal      = 0;
+let correctCount    = 0;
+let rewardWanted    = true;
+
+// ═══════════════════════════════════════════════════
+//  RNG (seeded LCG)
+// ═══════════════════════════════════════════════════
+function rng() {
+  let s = (Math.random()*0xFFFFFFFF)>>>0;
+  return {
+    f()       { s=Math.imul(s,1664525)+1013904223>>>0; return s/0x100000000; },
+    int(a,b)  { return a+Math.floor(this.f()*(b-a+1)); },
+    pick(arr) { return arr[Math.floor(this.f()*arr.length)]; },
+    shuf(arr) {
+      const a=[...arr];
+      for(let i=a.length-1;i>0;i--){const j=Math.floor(this.f()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+      return a;
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  AUTO-VÝPOČET CÍLOVÉHO POČTU ROVNIC
+// ═══════════════════════════════════════════════════
+function computeTarget() {
+  if (cfg.targetEqs > 0) return Math.max(6, cfg.targetEqs);
+  try {
+    const hdrH = document.querySelector('header').offsetHeight
+               + document.getElementById('settings').offsetHeight
+               + document.getElementById('status').offsetHeight
+               + document.getElementById('bank-wrap').offsetHeight + 34;
+    const aw = window.innerWidth-16, ah = window.innerHeight-hdrH-16;
+    const ec = Math.floor(aw/72), er = Math.floor(ah/72);
+    return Math.max(10, Math.min(20, Math.floor(ec*er/3.0)));
+  } catch(e) { return 12; }
+}
+
+// ═══════════════════════════════════════════════════
+//  MATEMATIKA — efektivní výpočet b a result
+// ═══════════════════════════════════════════════════
+// ═
+
+// ═══════════════════════════════════════════════════
+//  BUDOVÁNÍ VĚTVENÉ SÍTĚ ROVNIC
+//
+//  Matematicky správná struktura (z obrázků Math Crossword):
+//
+//  Každá rovnice je: [A] [op] [B] [=] [C]  — přesně 3 číselné buňky
+//  Buňky A, B nebo C mohou být SDÍLENY s jinou rovnicí
+//  v KOLMÉM směru. NIKDY se nesmí dvě rovnice propojit
+//  ve STEJNÉM směru (nevznikne A op B = C op D = E).
+//
+//  Pravidla větvení:
+//  - C buňka → může spustit novou rovnici POUZE kolmě
+//    (jinak by vzniklo „A op B = C op D = E" — špatně)
+//  - B buňka → může spustit novou rovnici POUZE kolmě (T-větev)
+//  - A buňka → může spustit novou rovnici POUZE kolmě (A-větev)
+//
+//  Limity číslic:
+//  - Cifra 0: max 2× v celé křížovce
+//  - Cifra 1: max 2× v celé křížovce
+// ═══════════════════════════════════════════════════
+function buildNetwork(R, TARGET) {
+  const MG = 24;
+  const K  = (c,r) => `${c},${r}`;
+
+  const nums = new Map();   // key → hodnota
+  const hOps = {};          // hOps[K(c,r)] = operátor NAPRAVO od (c,r)
+  const vOps = {};          // vOps[K(c,r)] = operátor POD (c,r)
+  const eqList = [];
+  let cnt0 = 0, cnt1 = 0;
+  const DIGIT_MAX = 2;
+  const CX = (MG/2)|0, CY = (MG/2)|0;
+  const qEqs = [0,0,0,0];
+
+  function quadrant(c,r){ return (c>=CX?1:0)|(r>=CY?2:0); }
+  function digitOK(v){ return v===0?cnt0<DIGIT_MAX:v===1?cnt1<DIGIT_MAX:true; }
+  function registerDigit(v){ if(v===0)cnt0++;else if(v===1)cnt1++; }
+
+  function isChainStart(ac,ar,dir){
+    if(dir==='H') return hOps[K(ac-1,ar)]==='=';
+    return vOps[K(ac,ar-1)]==='=';
+  }
+  function isCStart(cc,cr,dir){
+    if(dir==='H') return hOps[K(cc,cr)]!==undefined;
+    return vOps[K(cc,cr)]!==undefined;
+  }
+
+  function candidatesFwd(op,a){
+    const out=[];
+    if(op==='+'){const lo=Math.max(cfg.min,cfg.min-a),hi=Math.min(cfg.max,cfg.max-a);for(let b=lo;b<=hi;b++){const r=a+b;if(r>=cfg.min&&r<=cfg.max)out.push([b,r]);}}
+    else if(op==='-'){const lo=Math.max(cfg.min,a-cfg.max),hi=Math.min(cfg.max,a-cfg.min);for(let b=lo;b<=hi;b++){const r=a-b;if(r>=cfg.min&&r<=cfg.max)out.push([b,r]);}}
+    else if(op==='*'){if(a!==0){const lo=Math.max(cfg.min,Math.ceil(cfg.min/a)),hi=Math.min(cfg.max,Math.floor(cfg.max/a));for(let b=lo;b<=hi;b++)out.push([b,a*b]);}}
+    else if(op==='/'){if(a!==0)for(let d=1;d*d<=a;d++){if(a%d===0){const d2=a/d;if(d>=cfg.min&&d<=cfg.max&&d2>=cfg.min&&d2<=cfg.max)out.push([d,d2]);if(d!==d2&&d2>=cfg.min&&d2<=cfg.max&&d>=cfg.min&&d<=cfg.max)out.push([d2,d]);}}}
+    return out.filter(([b,r])=>{let z=cnt0,o=cnt1;if(b===0)z++;else if(b===1)o++;if(r===0)z++;else if(r===1)o++;return z<=DIGIT_MAX&&o<=DIGIT_MAX;});
+  }
+
+  function candidatesRev(op,cVal){
+    const out=[];
+    if(op==='+'){const lo=Math.max(cfg.min,cVal-cfg.max),hi=Math.min(cfg.max,cVal-cfg.min);for(let a=lo;a<=hi;a++){const b=cVal-a;if(b>=cfg.min&&b<=cfg.max)out.push([a,b]);}}
+    else if(op==='-'){const lo=Math.max(cfg.min,cVal),hi=cfg.max;for(let a=lo;a<=hi;a++){const b=a-cVal;if(b>=cfg.min&&b<=cfg.max)out.push([a,b]);}}
+    else if(op==='*'){if(cVal>0)for(let a=Math.max(1,cfg.min);a<=cfg.max;a++){if(cVal%a===0){const b=cVal/a;if(b>=cfg.min&&b<=cfg.max)out.push([a,b]);}}}
+    else if(op==='/'){for(let b=Math.max(1,cfg.min);b<=cfg.max;b++){const a=cVal*b;if(a>=cfg.min&&a<=cfg.max)out.push([a,b]);}}
+    return out.filter(([a,b])=>{if(!digitOK(a))return false;let z=cnt0,o=cnt1;if(a===0)z++;else if(a===1)o++;if(b===0)z++;else if(b===1)o++;return z<=DIGIT_MAX&&o<=DIGIT_MAX;});
+  }
+
+  const eqSigs = new Set(); // deduplikace: zabrání opakování stejné rovnice
+
+  function commitEq(ac,ar,bc,br,cc,cr,dir,op,a,b,res){
+    nums.set(K(bc,br),b); registerDigit(b);
+    nums.set(K(cc,cr),res); registerDigit(res);
+    if(dir==='H'){hOps[K(ac,ar)]=op;hOps[K(bc,br)]='=';}
+    else{vOps[K(ac,ar)]=op;vOps[K(bc,br)]='=';}
+    eqList.push({dir,ac,ar,bc,br,rc:cc,rr:cr,op,a,b,res,ak:K(ac,ar),bk:K(bc,br),rk:K(cc,cr)});
+    qEqs[quadrant((ac+cc)>>1,(ar+cr)>>1)]++;
+    eqSigs.add(a+op+b+'='+res); // zaregistruj signaturu
+  }
+
+  function placeEq(ac,ar,dir){
+    const[bc,br]=dir==='H'?[ac+1,ar]:[ac,ar+1];
+    const[cc,cr]=dir==='H'?[ac+2,ar]:[ac,ar+2];
+    if(bc<0||br<0||bc>=MG||br>=MG||cc<0||cr<0||cc>=MG||cr>=MG)return null;
+    if(nums.has(K(bc,br))||nums.has(K(cc,cr)))return null;
+    if(dir==='H'){if(hOps[K(ac,ar)]!==undefined||hOps[K(bc,br)]!==undefined)return null;}
+    else{if(vOps[K(ac,ar)]!==undefined||vOps[K(bc,br)]!==undefined)return null;}
+    if(isChainStart(ac,ar,dir))return null;
+    if(!nums.has(K(ac,ar))){
+      let a,t=0;do{a=R.int(cfg.min,cfg.max);t++;}while(!digitOK(a)&&t<30);
+      if(!digitOK(a))return null;nums.set(K(ac,ar),a);registerDigit(a);
+    }
+    const a=nums.get(K(ac,ar));
+    let chosen=null;
+    for(const op of R.shuf(cfg.ops)){
+      const v=candidatesFwd(op,a).filter(([b,res])=>!eqSigs.has(a+op+b+'='+res));
+      if(v.length){const[b,res]=R.pick(v);chosen={op,b,res};break;}
+    }
+    if(!chosen)return null;
+    const{op,b,res}=chosen;
+    commitEq(ac,ar,bc,br,cc,cr,dir,op,a,b,res);
+    return{ac,ar,bc,br,cc,cr,perp:dir==='H'?'V':'H'};
+  }
+
+  function placeEqRev(cc,cr,dir){
+    const[ac,ar]=dir==='H'?[cc-2,cr]:[cc,cr-2];
+    const[bc,br]=dir==='H'?[cc-1,cr]:[cc,cr-1];
+    if(ac<0||ar<0||ac>=MG||ar>=MG||bc<0||br<0)return null;
+    if(nums.has(K(ac,ar))||nums.has(K(bc,br)))return null;
+    if(dir==='H'){if(hOps[K(ac,ar)]!==undefined||hOps[K(bc,br)]!==undefined)return null;}
+    else{if(vOps[K(ac,ar)]!==undefined||vOps[K(bc,br)]!==undefined)return null;}
+    if(isChainStart(ac,ar,dir))return null;
+    if(isCStart(cc,cr,dir))return null;
+    const cVal=nums.get(K(cc,cr));
+    if(cVal===undefined)return null;
+    let chosen=null;
+    for(const op of R.shuf(cfg.ops)){
+      const v=candidatesRev(op,cVal).filter(([a,b])=>!eqSigs.has(a+op+b+'='+cVal));
+      if(v.length){const[a,b]=R.pick(v);chosen={op,a,b};break;}
+    }
+    if(!chosen)return null;
+    const{op,a,b}=chosen;
+    nums.set(K(ac,ar),a);registerDigit(a);
+    commitEq(ac,ar,bc,br,cc,cr,dir,op,a,b,cVal);
+    return{ac,ar,bc,br,cc,cr,perp:dir==='H'?'V':'H'};
+  }
+
+  const frontier=[];
+
+  function addToFrontier(p){
+    const perp=p.perp;const PROB=0.58;
+    for(const item of R.shuf([
+      {c:p.ac,r:p.ar,fwd:true},{c:p.bc,r:p.br,fwd:true},{c:p.cc,r:p.cr,fwd:true},
+      {c:p.ac,r:p.ar,fwd:false},{c:p.bc,r:p.br,fwd:false},{c:p.cc,r:p.cr,fwd:false},
+    ])){if(R.f()<PROB)frontier.push({c:item.c,r:item.r,dirs:[perp],fwd:item.fwd});}
+    if(!frontier.some(f=>f.c===p.cc&&f.r===p.cr&&f.fwd))
+      frontier.push({c:p.cc,r:p.cr,dirs:[perp],fwd:true});
+  }
+
+  function pickFrontierIdx(){
+    if(frontier.length<=1)return 0;
+    let sC=0,sR=0,n=0;
+    for(const k of nums.keys()){const[c2,r2]=k.split(',').map(Number);sC+=c2;sR+=r2;n++;}
+    const aC=n>0?sC/n:CX,aR=n>0?sR/n:CY;
+    const dC=aC-CX,dR=aR-CY;
+    const scores=frontier.map(f=>-(( f.c-CX)*dC+(f.r-CY)*dR));
+    const maxS=Math.max(...scores);
+    const top=scores.map((s,i)=>s>=maxS-2?i:-1).filter(i=>i>=0);
+    return R.pick(top);
+  }
+
+  let started=false;
+  for(const dir of R.shuf(['H','V'])){
+    const sc2=dir==='H'?CX-1:CX,sr2=dir==='H'?CY:CY-1;
+    const p=placeEq(sc2,sr2,dir);
+    if(p){addToFrontier(p);started=true;break;}
+  }
+  if(!started)throw new Error('Start failed');
+
+  let att=0;
+  while(eqList.length<TARGET&&frontier.length>0&&att<3000){
+    att++;
+    const fi=pickFrontierIdx();
+    const{c,r,dirs,fwd}=frontier[fi];
+    let placed=false;
+    for(const dir of R.shuf(dirs)){
+      const p=fwd?placeEq(c,r,dir):placeEqRev(c,r,dir);
+      if(p){frontier.splice(fi,1);addToFrontier(p);while(frontier.length>50)frontier.splice(Math.floor(R.f()*frontier.length),1);placed=true;break;}
+    }
+    if(!placed&&att%20===0)frontier.splice(fi,1);
+  }
+
+  if(eqList.length<5)throw new Error('Too few equations: '+eqList.length);
+  // Musíme dosáhnout alespoň 75 % cílového počtu rovnic
+  if(eqList.length < Math.ceil(TARGET*0.75))
+    throw new Error('Insufficient equations: '+eqList.length+'/'+TARGET);
+  const ucnt={};for(const e of eqList)for(const k of[e.ak,e.bk,e.rk])ucnt[k]=(ucnt[k]||0)+1;
+  const branches=Object.keys(ucnt).filter(k=>ucnt[k]>=2).length;
+  // Absolutní minimum 5 větví — nesnižuje se s počtem rovnic
+  if(branches<5)throw new Error('Need 5 branches, got '+branches);
+  const allKeys=[...nums.keys()];
+  const allC2=allKeys.map(k=>+k.split(',')[0]),allR2=allKeys.map(k=>+k.split(',')[1]);
+  const W=Math.max(...allC2)-Math.min(...allC2)+1,H2=Math.max(...allR2)-Math.min(...allR2)+1;
+  const ratio=W/H2;
+  if(ratio<0.25||ratio>4.0)throw new Error('Bad ratio '+ratio.toFixed(2));
+  const node={};for(const[k,v]of nums)node[k]=v;
+  return{node,opH:hOps,opV:vOps,eqList};
+}
+
+
+// ═══════════════════════════════════════════════════
+//  GARANCE ŘEŠITELNOSTI — constraint propagation
+// ═══════════════════════════════════════════════════
+function canSolveAll(givenSet, eqList, allCells) {
+  const known=new Set(givenSet);
+  let changed=true;
+  while(changed){
+    changed=false;
+    for(const eq of eqList){
+      const uk=[eq.ak,eq.bk,eq.rk].filter(c=>!known.has(c));
+      if(uk.length===1){known.add(uk[0]);changed=true;}
+    }
+  }
+  return allCells.every(c=>known.has(c));
+}
+
+// Skrývá buňky (dělá je prázdnými) v pořadí b → result → a,
+// přičemž po každém skrytí ověří řešitelnost.
+function makeSolvableBlanks(eqList, allCells, R) {
+  const given=new Set(allCells);
+  const blank=new Set();
+  const seen=new Set(), cands=[];
+  for(const cell of[
+    ...R.shuf(eqList.map(e=>e.bk)),
+    ...R.shuf(eqList.map(e=>e.rk)),
+    ...R.shuf(eqList.map(e=>e.ak))
+  ]){ if(!seen.has(cell)){seen.add(cell);cands.push(cell);} }
+
+  for(const cell of cands){
+    given.delete(cell); blank.add(cell);
+    if(!canSolveAll(given,eqList,allCells)){
+      given.add(cell); blank.delete(cell); // MUSÍ zůstat viditelné
+    }
+  }
+  return{given,blank};
+}
+
+// ═══════════════════════════════════════════════════
+//  HLAVNÍ GENERÁTOR
+// ═══════════════════════════════════════════════════
+function generateSolvable(R){
+  const TARGET=computeTarget();
+  const MAX=50;
+  let lastErr=new Error('Generování selhalo');
+  for(let att=0;att<MAX;att++){
+    try{
+      const net=buildNetwork(R,TARGET);
+      const allCells=Object.keys(net.node);
+      const{given,blank}=makeSolvableBlanks(net.eqList,allCells,R);
+      // cross = buňky, které jsou součástí >=2 rovnic A jsou prázdné (viditelné větvení)
+      const eqCnt={};
+      for(const eq of net.eqList)
+        for(const ck of[eq.ak,eq.bk,eq.rk])
+          eqCnt[ck]=(eqCnt[ck]||0)+1;
+      const cross=new Set(Object.keys(eqCnt).filter(ck=>eqCnt[ck]>=2&&blank.has(ck)));
+      // Ověř min. počet větví (přísněji: větvení musí být viditelné v blank buňkách)
+      // Sdílené buňky ve viditelné síti: jak blank tak given jsou větvení
+      // buildNetwork already ensured >=5 branches; just build cross set
+      return{...net,blank,cross};
+    }catch(e){ lastErr=e; }
+  }
+  throw lastErr;
+}
+
+// ═══════════════════════════════════════════════════
+//  BANKA ČÍSEL
+// ═══════════════════════════════════════════════════
+function buildBank(){
+  const{node,blank}=puzzle;
+  // Sbírá hodnoty všech prázdných buněk, seřazené
+  bankTiles=[...blank]
+    .map(k=>({key:k, value:node[k]}))
+    .sort((a,b)=>a.value-b.value)
+    .map((t,i)=>({value:t.value,used:false}));
+  answers={}; answerBank={}; selBankIdx=null; activeCellKey=null;
+}
+
+function renderBank(){
+  const el=document.getElementById('bank');
+  el.innerHTML='';
+  const digits=Math.max(...bankTiles.map(t=>String(t.value).length));
+  const sz=digits<=2?46:digits<=4?52:60;
+  const fs=digits<=2?18:digits<=4?14:11;
+  for(let i=0;i<bankTiles.length;i++){
+    const t=bankTiles[i];
+    const d=document.createElement('div');
+    d.className='btile'+(t.used?' used':'')+(selBankIdx===i?' sel':'');
+    d.textContent=t.value;
+    d.style.minWidth=sz+'px'; d.style.height=sz+'px';
+    d.style.fontSize=fs+'px';
+    d.addEventListener('click',()=>tapBankTile(i));
+    el.appendChild(d);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  INTERAKCE — tap cell / tap bank tile
+// ═══════════════════════════════════════════════════
+function tapCell(key){
+  if(!puzzle||!BLANK.has(key)) return;
+  feedback=null;
+
+  if(!bankMode){
+    // ── Ruční vstup ──
+    openManual(key);
+    return;
+  }
+
+  // ── Bankovní režim ──
+  if(activeCellKey===key){
+    if(answers[key]!==undefined) clearActiveCell(key);
+    else { activeCellKey=null; render(); renderEqHint(null); }
+    return;
+  }
+  if(selBankIdx!==null && !bankTiles[selBankIdx].used){
+    placeInCell(key, selBankIdx);
+    return;
+  }
+  activeCellKey=key;
+  selBankIdx=null;
+  render(); renderBank(); renderEqHint(key);
+}
+
+function tapBankTile(idx){
+  if(bankTiles[idx].used) return;
+
+  if(activeCellKey!==null){
+    // Buňka je aktivní → ihned umísti
+    placeInCell(activeCellKey, idx);
+  } else {
+    // Žádná aktivní buňka → vyber/zruš výběr tile
+    selBankIdx=(selBankIdx===idx)?null:idx;
+    renderBank();
+  }
+}
+
+function placeInCell(key, bankIdx){
+  // Vrátíme předchozí hodnotu do banky pokud existuje
+  if(answers[key]!==undefined){
+    bankTiles[answerBank[key]].used=false;
+  }
+  // Umístíme novou hodnotu
+  answers[key]=bankTiles[bankIdx].value;
+  answerBank[key]=bankIdx;
+  bankTiles[bankIdx].used=true;
+  activeCellKey=null; selBankIdx=null;
+  render(); renderBank(); renderEqHint(null);
+  autoCheck();
+}
+
+function clearActiveCell(key){
+  if(answers[key]!==undefined){
+    bankTiles[answerBank[key]].used=false;
+    delete answers[key]; delete answerBank[key];
+  }
+  activeCellKey=key; // zůstane aktivní (prázdná)
+  feedback=null;
+  render(); renderBank(); renderEqHint(key);
+}
+
+// ═══════════════════════════════════════════════════
+//  LAYOUT ENGINE — optimální rozmístění grid + zvíře
+// ═══════════════════════════════════════════════════
+// Náhodná strana křížovky — určí se při newGame, nemění se při render()
+let _gridSide = 'L'; // 'L' = křížovka vlevo, 'R' = vpravo
+let _gridRect  = null;
+
+// ═══════════════════════════════════════════════════
+//  RENDERING — křížovka maximální, max 13 řádků vizuálně
+// ═══════════════════════════════════════════════════
+function render(){
+  const container=document.getElementById('grid');
+  container.innerHTML='';
+  container.style.display='block';
+  container.style.position='absolute';
+  if(!puzzle) return;
+
+  const{node,opH,opV,blank,cross}=puzzle;
+  const keys=Object.keys(node);
+  if(!keys.length) return;
+
+  const cArr=keys.map(k=>parseInt(k.split(',')[0]));
+  const rArr=keys.map(k=>parseInt(k.split(',')[1]));
+  const minC=Math.min(...cArr),maxC=Math.max(...cArr);
+  const minR=Math.min(...rArr),maxR=Math.max(...rArr);
+  const cols=maxC-minC+1, rows=maxR-minR+1;
+
+  // ── Dostupná plocha: čteme main přímo po DOM layoutu ──
+  const mainEl = document.querySelector('main');
+  mainEl.style.position = 'relative';
+  mainEl.style.overflow = 'hidden';
+  mainEl.style.flex     = '1';     // vyplní zbytek mezi headerem a bankou
+  mainEl.style.minHeight = '0';   // nutné pro flex shrink
+
+  // Bezpečný okraj — větší aby spodek nikdy nebyl oříznut
+  const SAFE = 18;
+  const aw = mainEl.clientWidth  - 2*SAFE;
+  const ah = mainEl.clientHeight - 2*SAFE;
+
+  // ── CELL: celá plocha, max 13 vizuálních řádků ─────
+  const gcols = 2*cols - 1;
+  const grows  = Math.min(2*rows - 1, 2*13 - 1); // limit 13 číselných řádků
+  const CELL = Math.max(18, Math.min(72, Math.floor(
+    Math.min(aw / gcols, ah / grows) * 0.95
+  )));
+  const OP = CELL, STEP = CELL + OP;
+  const gridW = (maxC-minC)*STEP + CELL;
+  const gridH = (maxR-minR)*STEP + CELL;
+
+  // ── Vystřed grid v main ─────────────────────────────
+  const gx = SAFE + Math.max(0, Math.floor((aw - gridW) / 2));
+  const gy = SAFE + Math.max(0, Math.floor((ah - gridH) / 2));
+
+  container.style.left   = gx + 'px';
+  container.style.top    = gy + 'px';
+  container.style.width  = gridW + 'px';
+  container.style.height = gridH + 'px';
+
+  // Ulož rect pro positionAnimal
+  _gridRect = {gx, gy, gridW, gridH, aw, ah};
+
+  const digs = String(cfg.max).length;
+  const fs   = Math.max(10, Math.floor(CELL*(digs<=2?.42:digs<=4?.34:digs<=6?.26:.20)));
+  const opFs = fs + 'px';
+  const br   = Math.max(4, Math.floor(CELL*.13)) + 'px';
+  container.style.setProperty('--op-rx', br);
+
+  for(const[key,val]of Object.entries(node)){
+    const[c,r]=key.split(',').map(Number);
+    const x=(c-minC)*STEP, y=(r-minR)*STEP;
+    const d=document.createElement('div');
+    d.style.cssText=`position:absolute;left:${x}px;top:${y}px;width:${CELL}px;height:${CELL}px;font-size:${fs}px;border-radius:${br}`;
+    if(blank.has(key)){
+      let cl='cell blank'+(cross.has(key)?' cross':'');
+      const ua=answers[key];
+      if(ua!==undefined) cl+=' filled';
+      if(feedback){if(feedback[key]===true)cl+=' correct';else if(feedback[key]===false)cl+=' wrong';}
+      if(activeCellKey===key) cl+=' active-cell';
+      d.className=cl; d.textContent=ua!==undefined?ua:'';
+      d.addEventListener('click',()=>tapCell(key));
+    }else{
+      d.className='cell given'; d.textContent=val;
+    }
+    container.appendChild(d);
+  }
+
+  const addOp=(sym,x,y)=>{
+    const d=document.createElement('div');
+    d.className='op'; d.textContent=sym;
+    d.style.cssText=`position:absolute;left:${x}px;top:${y}px;width:${CELL}px;height:${CELL}px;font-size:${opFs}`;
+    container.appendChild(d);
+  };
+  for(const[key,sym]of Object.entries(opH)){
+    const[c,r]=key.split(',').map(Number);
+    addOp(sym,(c-minC)*STEP+CELL,(r-minR)*STEP);
+  }
+  for(const[key,sym]of Object.entries(opV)){
+    const[c,r]=key.split(',').map(Number);
+    addOp(sym,(c-minC)*STEP,(r-minR)*STEP+CELL);
+  }
+  requestAnimationFrame(positionAnimal);
+}
+
+// ═══════════════════════════════════════════════════
+//  ZVÍŘE — umísti do největší volné zóny kolem gridu,
+//  otočené očima KE křížovce
+// ═══════════════════════════════════════════════════
+function positionAnimal(){
+  const el=document.getElementById('animal-bg');
+  const mainEl=document.querySelector('main');
+  if(!el||!mainEl||!puzzle||!_gridRect){if(el)el.style.display='none';return;}
+  if(el.parentElement!==mainEl) mainEl.appendChild(el);
+
+  const{gx,gy,gridW:gw,gridH:gh,aw,ah}=_gridRect;
+  const GAP=10;
+
+  // 4 volné pruhy kolem gridu
+  const zones=[
+    {id:'L', x:0,         y:0, w:gx-GAP,          h:ah},
+    {id:'R', x:gx+gw+GAP, y:0, w:aw-(gx+gw+GAP),  h:ah},
+    {id:'T', x:0,         y:0, w:aw,               h:gy-GAP},
+    {id:'B', x:0,         y:gy+gh+GAP, w:aw,       h:ah-(gy+gh+GAP)},
+  ].filter(z=>z.w>40&&z.h>40);
+
+  if(!zones.length){el.style.display='none';return;}
+
+  // Největší plocha
+  const best=zones.reduce((a,b)=>a.w*a.h>=b.w*b.h?a:b);
+
+  const maxSz=Math.floor(Math.min(best.w,best.h)*0.88);
+  if(maxSz<36){el.style.display='none';return;}
+
+  const pad=Math.round(maxSz*0.10);
+  const outer=maxSz+2*pad;
+
+  const ax=best.x+Math.round((best.w-outer)/2);
+  const ay=best.y+Math.round((best.h-outer)/2);
+
+  // Orientace emoji směrem ke křížovce:
+  // Většina zvířecích emoji hledí doprava (→).
+  // L = zvíře vlevo od gridu → hledí vpravo (→) → žádná transformace
+  // R = zvíře vpravo       → hledí vlevo (←) → scaleX(-1)
+  // T = zvíře nahoře       → hledí dolů  (↓) → rotate(90deg)
+  // B = zvíře dole         → hledí nahoru (↑) → rotate(-90deg)
+  const transforms={L:'scaleX(-1)',R:'scaleX(1)',T:'rotate(-90deg)',B:'rotate(90deg)'};
+  const tf=transforms[best.id]||'scaleX(1)';
+
+  el.style.display='';
+  el.style.position='absolute';
+  el.style.left=ax+'px';
+  el.style.top=ay+'px';
+  el.style.width=outer+'px';
+  el.style.height=outer+'px';
+  el.style.fontSize=maxSz+'px';
+  el.style.padding=pad+'px';
+  el.style.right=''; el.style.bottom='';
+  el.style.transform=tf;
+  el.style.transformOrigin='center center';
+}
+
+
+
+// ═══════════════════════════════════════════════════
+//  EQUATION HINT (zobrazí rovnici pro aktivní buňku)
+// ═══════════════════════════════════════════════════
+function getCellEquations(key){
+  const{node,blank,eqList}=puzzle;
+  function cs(ck){
+    if(ck===key) return null;
+    if(blank.has(ck)){const ua=answers[ck];return ua!==undefined?String(ua):'?';}
+    return String(node[ck]);
+  }
+  return eqList
+    .filter(eq=>eq.ak===key||eq.bk===key||eq.rk===key)
+    .map(eq=>({dir:eq.dir==='H'?'→':'↓',parts:[
+      {val:cs(eq.ak),isT:eq.ak===key},{sym:SYM[eq.op]},
+      {val:cs(eq.bk),isT:eq.bk===key},{sym:'='},
+      {val:cs(eq.rk),isT:eq.rk===key}
+    ]}));
+}
+
+function renderEqHint(key){
+  const bar=document.getElementById('eq-hint');
+  bar.innerHTML='';
+  if(!key||!puzzle) return;
+  for(const eq of getCellEquations(key)){
+    const wrap=document.createElement('div'); wrap.className='eh-eq';
+    const dir=document.createElement('span'); dir.className='eh-dir'; dir.textContent=eq.dir;
+    wrap.appendChild(dir);
+    for(const p of eq.parts){
+      const s=document.createElement('span');
+      if(p.sym!==undefined){s.className='eh-sym';s.textContent=p.sym;}
+      else if(p.isT)       {s.className='eh-tgt';s.textContent='?';}
+      else                  {s.className='eh-val';s.textContent=p.val;}
+      wrap.appendChild(s);
+    }
+    bar.appendChild(wrap);
+  }
+  // Přizpůsob výšku gridu po zobrazení hintu
+  setTimeout(render, 50);
+}
+
+// ═══════════════════════════════════════════════════
+//  KONTROLA
+// ═══════════════════════════════════════════════════
+function autoCheck(){
+  const total=[...BLANK].length;
+  const filled=[...BLANK].filter(k=>answers[k]!==undefined).length;
+  if(filled>=total) checkAnswers();
+  else setStatus(`Vyplněno: ${filled} / ${total}  ·  ${puzzle.eqList.length} rovnic`);
+}
+
+function checkAnswers(){
+  if(!puzzle) return;
+  feedback={}; let correct=0, total=0;
+  for(const key of BLANK){
+    total++;
+    const ua=answers[key];
+    if(ua===undefined){feedback[key]=false;continue;}
+    feedback[key]=(ua===puzzle.node[key]);
+    if(feedback[key]) correct++;
+  }
+
+  // Zavři hint bar a deaktivuj výběr, aby render měl plný prostor
+  activeCellKey=null; selBankIdx=null;
+  renderEqHint(null);
+  render();
+  if(bankMode) renderBank();
+
+  // Score
+  const pts = correct * 10;
+  scoreTotal += pts;
+  const prevMilestone = Math.floor(correctCount / 5);
+  correctCount += correct;
+  const newMilestone  = Math.floor(correctCount / 5);
+  updateScoreBadge();
+
+  if(correct===total){
+    setStatus('🎉 Výborně! Všechno správně!','win');
+    if(newMilestone > prevMilestone) setTimeout(showReward, 600);
+  } else {
+    setStatus(`Správně: ${correct} / ${total}  ·  ${total-correct} chyb — zkus znovu!`,'error');
+  }
+}
+
+function setStatus(msg,cls=''){
+  const el=document.getElementById('status'); el.textContent=msg; el.className=cls;
+}
+
+// ═══════════════════════════════════════════════════
+//  PDF EXPORT
+// ═══════════════════════════════════════════════════
+function buildPageHTML(answerMode){
+  const{node,opH,opV,blank,cross}=puzzle;
+  const keys=Object.keys(node);
+  const cA=keys.map(k=>parseInt(k.split(',')[0])),rA=keys.map(k=>parseInt(k.split(',')[1]));
+  const minC=Math.min(...cA),maxC=Math.max(...cA),minR=Math.min(...rA),maxR=Math.max(...rA);
+  const cols=maxC-minC+1,rows=maxR-minR+1;
+  const land=cols>rows*1.3;
+  const pgW=land?262:180,pgH=land?180:257;
+  const CELL=Math.min(pgW/(2*cols-1||1),pgH*.80/(2*rows-1||1))*.90;
+  const OP=CELL,STEP=CELL+OP;
+  const f=n=>`${n.toFixed(2)}mm`;
+  const W=(maxC-minC)*STEP+CELL,H=(maxR-minR)*STEP+CELL;
+  const digs=String(cfg.max).length;
+  const fs=CELL*(digs<=2?.42:digs<=4?.34:digs<=6?.26:.20),opFs=fs*1.02;
+  const base=`position:absolute;display:flex;align-items:center;justify-content:center;font-weight:800;border-radius:${f(CELL*.13)};font-size:${f(fs)};`;
+  const opSt=`position:absolute;display:flex;align-items:center;justify-content:center;font-weight:700;color:#334155;font-size:${f(fs)};background:#e2e8f0;border:${f(CELL*.025)} solid #cbd5e1;border-radius:${f(CELL*.13)};`;
+  let cells='';
+  for(const[key,val]of Object.entries(node)){
+    const[c,r]=key.split(',').map(Number);
+    const x=(c-minC)*STEP,y=(r-minR)*STEP;
+    const isBl=blank.has(key),isCr=cross.has(key);
+    const sv=isBl?(answerMode?val:(answers[key]!==undefined?answers[key]:'')):(val);
+    const bg=isBl?(answerMode?'#dde6ff':'#fff'):'#e2e8f0';
+    const bc=isBl?(answerMode?'#2952cc':(isCr?'#f59e0b':'#334155')):'transparent';
+    const fc=isBl?(answerMode?'#2952cc':'#334155'):'#334155';
+    cells+=`<div style="${base}left:${f(x)};top:${f(y)};width:${f(CELL)};height:${f(CELL)};background:${bg};border:${f(CELL*.038)} solid ${bc};color:${fc}">${sv}</div>`;
+  }
+  for(const[key,sym]of Object.entries(opH)){
+    const[c,r]=key.split(',').map(Number);
+    cells+=`<div style="${opSt}left:${f((c-minC)*STEP+CELL)};top:${f((r-minR)*STEP)};width:${f(CELL)};height:${f(CELL)}">${sym}</div>`;
+  }
+  for(const[key,sym]of Object.entries(opV)){
+    const[c,r]=key.split(',').map(Number);
+    cells+=`<div style="${opSt}left:${f((c-minC)*STEP)};top:${f((r-minR)*STEP+CELL)};width:${f(CELL)};height:${f(CELL)}">${sym}</div>`;
+  }
+
+  // Bank ve spodní části (jen pro zadání)
+  let bankHTML = '';
+  if (!answerMode) {
+    const sorted = [...BLANK].map(k=>puzzle.node[k]).sort((a,b)=>a-b);
+    bankHTML = `<div style="margin-top:7mm;font-family:Helvetica,Arial,sans-serif;text-align:center">
+      <div style="font-size:3mm;color:#2e7d32;font-weight:700;margin-bottom:3mm">Dostupná čísla</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center">
+        ${sorted.map(v=>`<div style="background:#4caf50;color:#fff;font-weight:900;font-size:${f(fs*.80)};border-radius:${f(CELL*.13)};padding:1.5mm 3mm;min-width:${f(CELL*.6)};text-align:center">${v}</div>`).join('')}
+      </div></div>`;
+  }
+
+  const ops=cfg.ops.map(o=>SYM[o]).join(' · ');
+  const title=answerMode?'Řešení — správné odpovědi':'Matematická křížovka 🐍';
+  const hint=answerMode?'Modré = doplňovalo dítě  ·  Zlatý rámeček = průnik rovnic':'Doplň čísla z banky do prázdných políček!';
+  return`<div style="font-family:Helvetica,Arial,sans-serif;text-align:center;margin-bottom:5mm">
+<div style="font-size:5.5mm;font-weight:900;color:#2952cc;margin-bottom:1.5mm">${title}</div>
+<div style="font-size:3mm;color:#64748b">Operace: ${ops} · Hodnoty: ${cfg.min}–${cfg.max} · ${puzzle.eqList.length} rovnic · ${BLANK.size} políček</div>
+<div style="font-size:2.8mm;color:#94a3b8">${hint}</div>
+</div><div style="position:relative;width:${f(W)};height:${f(H)}">${cells}</div>${bankHTML}`;
+}
+
+// ── Generuje HTML stránku jedné křížovky pro tisk ────────
+function buildOneCrosswordPage(p, idx){
+  const{node,opH,opV,blank,cross}=p;
+  const keys=Object.keys(node);
+  const cA=keys.map(k=>+k.split(',')[0]),rA=keys.map(k=>+k.split(',')[1]);
+  const minC=Math.min(...cA),maxC=Math.max(...cA),minR=Math.min(...rA),maxR=Math.max(...rA);
+  const cols=maxC-minC+1,rows=maxR-minR+1;
+  const land=cols>rows*1.3;
+  const pgW=land?262:180,pgH=land?180:257;
+  const CELL=Math.min(pgW/(2*cols-1||1),pgH*.80/(2*rows-1||1))*.84;
+  const OP=CELL,STEP=CELL+OP;
+  const f=n=>`${n.toFixed(2)}mm`;
+  const W=(maxC-minC)*STEP+CELL,H=(maxR-minR)*STEP+CELL;
+  const digs=String(cfg.max).length;
+  const fs=CELL*(digs<=2?.42:digs<=4?.34:digs<=6?.26:.20);
+  const base=`position:absolute;display:flex;align-items:center;justify-content:center;font-weight:800;border-radius:${f(CELL*.13)};font-size:${f(fs)};`;
+  const opSt=`position:absolute;display:flex;align-items:center;justify-content:center;font-weight:900;color:#1A237E;font-size:${f(fs)};background:#FBF4D6;border:${f(CELL*.04)} solid #C8A441;border-radius:${f(CELL*.13)};`;
+  let cells='';
+  for(const[key,val]of Object.entries(node)){
+    const[c,r]=key.split(',').map(Number);
+    const x=(c-minC)*STEP,y=(r-minR)*STEP;
+    const isBl=blank.has(key),isCr=cross.has(key);
+    const bg=isBl?'#fff':'#FBF4D6';
+    const bc=isBl?(isCr?'#f59e0b':'#1A237E'):'#C8A441';
+    const bw=isBl?f(CELL*.05):f(CELL*.04);
+    cells+=`<div style="${base}left:${f(x)};top:${f(y)};width:${f(CELL)};height:${f(CELL)};background:${bg};border:${bw} solid ${bc};color:${isBl?'transparent':'#1A237E'}">${isBl?'':val}</div>`;
+  }
+  for(const[key,sym]of Object.entries(opH)){
+    const[c,r]=key.split(',').map(Number);
+    cells+=`<div style="${opSt}left:${f((c-minC)*STEP+CELL)};top:${f((r-minR)*STEP)};width:${f(OP)};height:${f(CELL)}">${sym}</div>`;
+  }
+  for(const[key,sym]of Object.entries(opV)){
+    const[c,r]=key.split(',').map(Number);
+    cells+=`<div style="${opSt}left:${f((c-minC)*STEP)};top:${f((r-minR)*STEP+CELL)};width:${f(CELL)};height:${f(OP)}">${sym}</div>`;
+  }
+  const ops=cfg.ops.map(o=>SYM[o]).join(' · ');
+  const animal=ANIMALS[(idx*7+3)%ANIMALS.length];
+  return`<div style="font-family:Helvetica,Arial,sans-serif;text-align:center;margin-bottom:5mm">
+<div style="font-size:5.5mm;font-weight:900;color:#E65100;margin-bottom:1mm">🐍 Matematická křížovka č.${idx} &nbsp;${animal}</div>
+<div style="font-size:2.8mm;color:#64748b">Operace: ${ops} · Hodnoty: ${cfg.min}–${cfg.max} · ${p.eqList.length} rovnic</div>
+</div>
+<div style="position:relative;width:${f(W)};height:${f(H)}">${cells}</div>`;
+}
+
+// ── Generuje 10 křížovek do HTML dokumentu pro tisk/PDF ──
+function exportPDF(){
+  setStatus('Generuji 10 křížovek…');
+  const ld=document.getElementById('loading');
+  ld.classList.add('on');
+
+  setTimeout(()=>{
+    try{
+      const pages=[];
+      for(let i=1;i<=10;i++){
+        const R=rng();
+        let p=null;
+        for(let att=0;att<40;att++){
+          try{
+            const net=buildNetwork(R,computeTarget());
+            const allCells=Object.keys(net.node);
+            const{given,blank}=makeSolvableBlanks(net.eqList,allCells,R);
+            const eqCnt={};
+            for(const eq of net.eqList)for(const ck of[eq.ak,eq.bk,eq.rk])eqCnt[ck]=(eqCnt[ck]||0)+1;
+            const cross=new Set(Object.keys(eqCnt).filter(ck=>eqCnt[ck]>=2&&blank.has(ck)));
+            const branchNodes=new Set(Object.keys(eqCnt).filter(ck=>eqCnt[ck]>=2));
+            if(branchNodes.size<5) continue;
+            p={...net,blank,cross};break;
+          }catch(e){}
+        }
+        if(p) pages.push(buildOneCrosswordPage(p,i));
+      }
+
+      if(!pages.length){setStatus('Nepodařilo se vygenerovat křížovky','error');return;}
+
+      const keys=Object.keys(puzzle.node);
+      const cA=keys.map(k=>+k.split(',')[0]),rA=keys.map(k=>+k.split(',')[1]);
+      const land=(Math.max(...cA)-Math.min(...cA))>(Math.max(...rA)-Math.min(...rA))*1.3;
+      const pg=land?'A4 landscape':'A4 portrait';
+
+      const html=`<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+@page{size:${pg};margin:15mm;}
+body{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:Helvetica,Arial,sans-serif;}
+.page{page-break-after:always;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;}
+.page:last-child{page-break-after:auto;}
+@media screen{
+  body{background:#C8DFF2;padding:20px;display:flex;flex-direction:column;gap:20px;align-items:center;}
+  .info{background:#fff;padding:12px 24px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center;max-width:640px;font-size:13px;color:#555;margin-bottom:4px;}
+  .info strong{color:#E65100;}
+  .page{background:#fff;padding:15mm;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.12);width:fit-content;min-height:unset;}
+}
+</style></head><body>
+<div class="info">
+  <strong>💾 Uložení PDF:</strong>&nbsp;
+  iPad: ⬆ Sdílet → Tisk → stiskni a drž náhled → Sdílet → Uložit do Souborů&nbsp;|&nbsp;
+  Mac / PC: ⌘P (nebo Ctrl+P) → Uložit jako PDF → zvolit umístění
+</div>
+${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
+</body></html>`;
+
+      const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const win=window.open(url,'_blank');
+      if(!win){
+        const a=document.createElement('a');
+        a.href=url; a.download='matematicke_krizovky.html'; a.click();
+      }
+      setTimeout(()=>URL.revokeObjectURL(url),120000);
+      setStatus(`Vygenerováno ${pages.length} křížovek — otevřeno v nové záložce`);
+    }catch(e){
+      setStatus('Chyba: '+e.message,'error');
+    }finally{
+      ld.classList.remove('on');
+    }
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════
+//  MODE TOGGLE (banka vs. ruční vstup)
+// ═══════════════════════════════════════════════════
+function toggleMode(checked){
+  bankMode = checked;
+  document.getElementById('bank-wrap').style.display = checked ? '' : 'none';
+  document.getElementById('mode-desc').textContent = checked
+    ? 'Čísla jsou připravena dole — vyber a umísti do políčka'
+    : 'Tapni na políčko a napiš číslo na klávesnici';
+  // Vymaž neuložené výběry při přepnutí
+  activeCellKey=null; selBankIdx=null;
+  render(); renderEqHint(null);
+}
+
+// ═══════════════════════════════════════════════════
+//  RUČNÍ VSTUP — modal
+// ═══════════════════════════════════════════════════
+function buildManualEqHTML(key, liveVal){
+  const eqs = getCellEquations(key);
+  if(!eqs.length) return '';
+  return eqs.map(eq=>{
+    const parts = eq.parts.map(p=>{
+      if(p.sym!==undefined) return `<span class="meq-sym">${p.sym}</span>`;
+      if(p.isT){
+        const disp = (liveVal!==''&&liveVal!==undefined) ? liveVal : '?';
+        return `<span class="meq-tgt">${disp}</span>`;
+      }
+      return `<span class="meq-val">${p.val}</span>`;
+    }).join('');
+    return `<div class="meq-row"><span style="font-size:12px;font-weight:700;color:var(--gray);margin-right:4px">${eq.dir}</span>${parts}</div>`;
+  }).join('');
+}
+
+function openManual(key){
+  activeCellKey = key;
+  const inp = document.getElementById('manual-inp');
+  inp.value = answers[key]!==undefined ? answers[key] : '';
+  inp.min = cfg.min; inp.max = cfg.max;
+  inp.placeholder = cfg.min+'–'+cfg.max;
+  inp.classList.remove('err');
+  document.getElementById('manual-eq').innerHTML = buildManualEqHTML(key, inp.value);
+  document.getElementById('manual-overlay').classList.add('open');
+  render();
+  setTimeout(()=>inp.focus(), 280);
+}
+
+function updateManualEq(val){
+  if(!activeCellKey) return;
+  document.getElementById('manual-eq').innerHTML = buildManualEqHTML(activeCellKey, val);
+}
+
+function manualKey(e){
+  if(e.key==='Enter') manualConfirm();
+  if(e.key==='Escape') closeManual();
+}
+
+function manualConfirm(){
+  const inp = document.getElementById('manual-inp');
+  const raw = inp.value.trim();
+  if(raw===''){manualClear();return;}
+  const val = parseInt(raw,10);
+  if(isNaN(val)||val<cfg.min||val>cfg.max){
+    inp.classList.add('err');
+    setTimeout(()=>inp.classList.remove('err'),700);
+    return;
+  }
+  if(activeCellKey!==null){
+    answers[activeCellKey]=val; feedback=null;
+  }
+  closeManual();
+  autoCheck();
+}
+
+function manualClear(){
+  if(activeCellKey!==null){
+    delete answers[activeCellKey]; delete answerBank[activeCellKey];
+    feedback=null;
+  }
+  closeManual();
+}
+
+function closeManual(){
+  document.getElementById('manual-overlay').classList.remove('open');
+  activeCellKey=null; render(); renderEqHint(null);
+}
+
+function manualOverlayClick(e){
+  if(e.target===document.getElementById('manual-overlay')) closeManual();
+}
+
+
+// ═══════════════════════════════════════════════════
+//  ZVÍŘE NA POZADÍ — 50 zvířátek
+// ═══════════════════════════════════════════════════
+// Pouze emoji přirozeně hledící DOPRAVA (→)
+// → transform dle zóny zajistí pohled ke křížovce
+const ANIMALS = [
+  '🐶','🐱','🐭','🐹','🐰','🦊','🐺','🐴','🦄','🦆',
+  '🦅','🦃','🦢','🦩','🦚','🦜','🐓','🐝','🐌','🐢',
+  '🦎','🐊','🐅','🦓','🐘','🦛','🦒','🦘','🐪','🦙',
+  '🐇','🦝','🦔','🦭','🦑','🐡','🐠','🐟','🐬','🦈',
+  '🐍','🦋','🐿','🦌','🐂','🐃','🐄','🐎','🐏','🐑'
+];
+
+let currentAnimal = '';
+
+
+
+function pickAnimal(){
+  const pool = ANIMALS.filter(a => a !== currentAnimal);
+  currentAnimal = pool[Math.floor(Math.random()*pool.length)];
+  const el = document.getElementById('animal-bg');
+  if(!el) return;
+  el.style.opacity = '0';
+  setTimeout(()=>{
+    el.textContent = currentAnimal;
+    el.style.opacity = '1';
+    positionAnimal();
+  }, 350);
+}
+
+// ═══════════════════════════════════════════════════
+//  SCORE & REWARD
+// ═══════════════════════════════════════════════════
+function updateScoreBadge(){
+  document.getElementById('score-val').textContent = scoreTotal;
+}
+
+function showReward(){
+  const msgs=['Výborně!','Super!','Fantastické!','Báječně!','Perfektně!'];
+  document.getElementById('reward-title').textContent = msgs[Math.floor(Math.random()*msgs.length)];
+  document.getElementById('reward-score').textContent = '+50 bonus bodů';
+  document.getElementById('reward').classList.add('show');
+}
+
+function closeReward(){
+  if(document.getElementById('reward-want').checked){
+    scoreTotal += 50;
+    updateScoreBadge();
+    const b=document.getElementById('score-badge');
+    b.style.transform='scale(1.35)';
+    setTimeout(()=>{b.style.transform='';},300);
+  }
+  document.getElementById('reward').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════
+//  NOVÁ HRA
+// ═══════════════════════════════════════════════════
+function newGame(){
+  answers={}; answerBank={}; bankTiles=[];
+  feedback=null; activeCellKey=null; selBankIdx=null;
+  correctCount=0;
+  setStatus('');
+  // Zavři manuální overlay pokud byl otevřený
+  pickAnimal();
+  _gridSide = Math.random()<0.5 ? 'L' : 'R'; // náhodná strana křížovky
+  document.getElementById('manual-overlay').classList.remove('open');
+  document.getElementById('eq-hint').innerHTML='';
+  document.getElementById('bank').innerHTML='';
+  document.getElementById('bank-wrap').style.display = bankMode ? '' : 'none';
+  const ld=document.getElementById('loading'); ld.classList.add('on');
+  setTimeout(()=>{
+    try{
+      puzzle=generateSolvable(rng());
+      BLANK=puzzle.blank; CROSS=puzzle.cross;
+      buildBank();
+      render(); renderBank();
+      setStatus(`Vyplněno: 0 / ${BLANK.size}  ·  ${puzzle.eqList.length} rovnic`);
+    }catch(e){
+      setStatus(e.message,'error');
+      document.getElementById('grid').innerHTML='';
+    }finally{ld.classList.remove('on');}
+  },30);
+}
+
+// ═══════════════════════════════════════════════════
+//  NASTAVENÍ
+// ═══════════════════════════════════════════════════
+function toggleOp(btn){
+  const op=btn.dataset.op;
+  if(cfg.ops.includes(op)){if(cfg.ops.length<=1)return;cfg.ops=cfg.ops.filter(o=>o!==op);btn.classList.remove('on');}
+  else{cfg.ops.push(op);btn.classList.add('on');}
+}
+
+function adj(what,d){
+  if(what==='teqs'){
+    const el=document.getElementById('teqsVal');
+    const v=Math.max(1,Math.min(30,(parseInt(el.textContent,10)||12)+d));
+    cfg.targetEqs=v; el.textContent=v; return;
+  }
+  const el=document.getElementById(what==='min'?'minVal':'maxVal');
+  const cur=parseInt(el.value,10)||0; let v=cur+d;
+  if(what==='min'){if(v<0||v>=cfg.max-1)return;cfg.min=v;}
+  if(what==='max'){if(v<=cfg.min+1||v>MAX_ALLOWED)return;cfg.max=v;}
+  el.value=v;
+}
+
+function onSI(what,el){
+  const v=parseInt(el.value,10);
+  if(isNaN(v)){el.value=what==='min'?cfg.min:cfg.max;return;}
+  if(what==='min'){if(v<0||v>=cfg.max-1){el.value=cfg.min;return;}cfg.min=v;}
+  else{if(v<=cfg.min+1||v>MAX_ALLOWED){el.value=cfg.max;return;}cfg.max=v;}
+}
+
+// ═══════════════════════════════════════════════════
+//  RESIZE & START
+// ═══════════════════════════════════════════════════
+let rT;
+window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(render,150);});
+newGame();
+</script>
+
+
+</body>
+</html>

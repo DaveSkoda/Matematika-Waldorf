@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Zlomky – Rozšiřování a Zkracování</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#C8DFF2; --surface:#FFFFFF; --cell:#FBF4D6; --cborder:#C8A441;
+  --blank-b:#1A237E; --text:#1A237E; --text2:#5C6BC0;
+  --h1:#E65100; --h2:#F57C00;
+  --bank-bg:#E8F5E9; --bank-b:#81C784; --tile-bg:#43A047; --tile-b:#2E7D32;
+  --green:#2E7D32; --gfade:#E8F5E9; --red:#C62828; --rfade:#FFEBEE; --amber:#F57F17;
+}
+
+body{font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,var(--h1) 0%,var(--h2) 100%);
+  color:#fff;padding:8px 12px;display:flex;align-items:center;gap:7px;
+  box-shadow:0 2px 10px rgba(230,81,0,.35);flex-shrink:0;z-index:10;}
+header h1{flex:1;font-size:clamp(12px,2.4vw,18px);font-weight:900;letter-spacing:-.3px;}
+.hbtn{background:rgba(255,255,255,.20);border:1.5px solid rgba(255,255,255,.40);
+  color:#fff;padding:6px 11px;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;}
+.hbtn:active{background:rgba(255,255,255,.40);}
+.hbtn.check{background:rgba(255,255,255,.92);color:var(--h1);}
+.hbtn.pdf{background:rgba(255,255,255,.15);}
+
+/* ── SETTINGS ── */
+#settings{background:#FFF8F0;border-bottom:2px solid var(--cborder);
+  padding:6px 12px;display:flex;flex-wrap:wrap;gap:5px 14px;
+  align-items:flex-end;flex-shrink:0;}
+.sg{display:flex;flex-direction:column;gap:3px;}
+.slabel{font-size:9px;font-weight:700;color:var(--h1);text-transform:uppercase;letter-spacing:.7px;}
+.stepper{display:flex;align-items:center;background:var(--cell);
+  border:1.5px solid var(--cborder);border-radius:8px;overflow:hidden;}
+.stepper button{width:28px;height:30px;border:none;background:transparent;
+  font-size:16px;font-weight:700;color:var(--h1);cursor:pointer;
+  touch-action:manipulation;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.stepper button:active{background:#FFE0CC;}
+.stepper-inp{width:60px;height:30px;border:none;
+  border-left:1px solid var(--cborder);border-right:1px solid var(--cborder);
+  background:transparent;text-align:center;font-size:12px;font-weight:700;
+  color:var(--text);padding:0 3px;outline:none;-moz-appearance:textfield;}
+.stepper-inp::-webkit-inner-spin-button,.stepper-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.stepper-inp:focus{background:#FFF3E0;}
+
+/* ── MODE TOGGLE ── */
+#mode-wrap{display:flex;align-items:center;gap:8px;
+  padding:5px 12px;background:#FFF8F0;border-bottom:1.5px solid var(--cborder);
+  flex-shrink:0;min-height:38px;}
+#mode-wrap label{font-size:12px;font-weight:700;color:var(--h1);cursor:pointer;
+  user-select:none;-webkit-user-select:none;white-space:nowrap;}
+#mode-chk{width:20px;height:20px;cursor:pointer;accent-color:var(--h1);flex-shrink:0;}
+#mode-desc{font-size:11px;color:#718096;flex:1;}
+
+/* ── STATUS ── */
+#status{text-align:center;padding:2px 12px;font-size:12px;font-weight:600;
+  color:var(--text2);flex-shrink:0;min-height:20px;transition:color .2s;}
+#status.win{color:var(--green);}
+#status.error{color:var(--red);}
+
+/* ── MAIN ── */
+main{flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;position:relative;}
+
+/* ── EXAMPLES WRAP ── */
+#examples-wrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;padding:8px 10px;}
+#examples-wrap::-webkit-scrollbar{width:4px;}
+#examples-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:4px;}
+
+/* 3-column grid: left-card | kiwi (2×) | right-card */
+.examples-grid{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;align-items:start;}
+@media(max-width:560px){
+  .examples-grid{grid-template-columns:1fr;}
+  #center-kiwi{display:none;}
+}
+
+/* ── CENTER KIWI ── */
+#center-kiwi{
+  align-self:stretch;
+  position:relative; /* anchor for absolute kiwi-bg */
+  padding:0 4px;
+  /* No flex layout here — kiwi-bg is absolutely positioned so it cannot push the grid row taller than the cards */
+}
+#kiwi-bg{
+  position:absolute;
+  top:0;left:4px;right:4px;height:100%; /* defaults — alignKiwi() refines */
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;user-select:none;-webkit-user-select:none;
+  opacity:1;transition:opacity .3s;
+  overflow:hidden;
+}
+#kiwi-bg img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;}
+
+/* ── BANK (inline, below grid) ── */
+#bank-wrap{background:var(--bank-bg);border:2px solid var(--bank-b);border-radius:13px;
+  padding:6px 10px 8px;margin-top:8px;}
+
+/* ── SECTION CHECK BUTTON ── */
+.sec-check-btn{
+  border:none;padding:4px 11px;border-radius:7px;
+  font-size:11px;font-weight:800;cursor:pointer;
+  touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;
+  margin-left:6px;flex-shrink:0;color:#fff;
+}
+.sec-check-btn:active{opacity:.8;}
+.sec-expand .sec-check-btn{background:#2b6cb0;}
+.sec-simplify .sec-check-btn{background:#6b46c1;}
+
+/* ── SECTION CARD ── */
+.sec-card{background:#fff;border-radius:13px;padding:10px 12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.sec-head h2{font-size:clamp(11px,1.8vw,14px);font-weight:800;}
+.sec-expand h2{color:#2b6cb0;}.sec-simplify h2{color:#6b46c1;}
+.sec-sub{font-size:10px;color:#718096;margin-bottom:8px;line-height:1.35;}
+.examples-list{display:flex;flex-direction:column;gap:7px;}
+
+.score{font-size:.72rem;font-weight:800;padding:2px 9px;border-radius:999px;display:none;margin-right:5px;}
+.score.show{display:inline;}
+.score.full{background:#f0fff4;color:#276749;}
+.score.part{background:#fff5f5;color:#c53030;}
+
+/* ── EXAMPLE ROW ── */
+.ex{display:flex;align-items:center;gap:6px;padding:7px 9px;
+  background:#f7fafc;border-radius:8px;border:2px solid #e2e8f0;
+  flex-wrap:wrap;-webkit-tap-highlight-color:transparent;}
+.ex-n{font-size:.72rem;font-weight:800;color:#a0aec0;min-width:14px;flex-shrink:0;}
+.eq{font-size:1.15rem;font-weight:700;color:#4a5568;flex-shrink:0;align-self:center;}
+
+/* ── FRACTION ── */
+.frac{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.fn,.fd{padding:1px 5px;min-width:24px;text-align:center;
+  font-size:clamp(12px,1.8vw,15px);font-weight:800;line-height:1.4;color:var(--text);}
+.fb{width:100%;min-width:24px;border-top:2.5px solid #2d3748;}
+
+/* ── BLANK CELL — ~125 % of text size ── */
+.cell-blank{
+  /* visual size ≈ 1.25× surrounding text */
+  min-width:1.9em;
+  height:1.45em;
+  padding:0 0.2em;
+  font-size:clamp(12px,1.8vw,15px); /* same as .fn/.fd */
+  font-weight:800;
+  line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text2);
+  background:var(--surface);
+  border:2px solid var(--blank-b);
+  border-radius:5px;
+  cursor:pointer;touch-action:manipulation;
+  transition:transform .1s,background .12s,border-color .12s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+  /* Expand hit-area without changing visual size */
+  position:relative;
+}
+.cell-blank::after{
+  content:'';position:absolute;
+  inset:-8px;  /* 8px invisible touch zone on all sides */
+}
+.cell-blank:active{transform:scale(.88);}
+.cell-blank.active-cell{border-color:var(--amber)!important;
+  animation:pulse .7s ease infinite;}
+@keyframes pulse{0%,100%{border-color:var(--amber);}50%{border-color:#FFCC02;}}
+.cell-blank.filled{border-color:var(--text2);}
+.cell-blank.correct{background:var(--gfade);border-color:var(--green);color:var(--green);}
+.cell-blank.wrong{background:var(--rfade);border-color:var(--red);color:var(--red);}
+
+/* ── BADGE ── */
+.badge{margin-left:auto;font-size:clamp(12px,1.8vw,15px);padding:2px 7px;border-radius:999px;
+  font-weight:800;white-space:nowrap;flex-shrink:0;}
+.be{background:#ebf8ff;color:#2b6cb0;}
+.bs{background:#faf5ff;color:#6b46c1;}
+.bl{background:#fffaf0;color:#c05621;}
+
+/* ── BANK ── */
+#bank-wrap{flex-shrink:0;background:var(--bank-bg);border-top:2px solid var(--bank-b);
+  padding:5px 10px calc(max(5px,env(safe-area-inset-bottom)));}
+#bank-label{font-size:9px;font-weight:800;color:var(--tile-b);
+  text-transform:uppercase;letter-spacing:.6px;text-align:center;margin-bottom:3px;}
+#bank{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;
+  max-height:98px;overflow-y:auto;}
+.btile{height:38px;min-width:38px;padding:0 5px;
+  background:var(--tile-bg);color:#fff;border-radius:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:2.5px solid var(--tile-b);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:all .12s;user-select:none;-webkit-user-select:none;font-size:14px;}
+.btile:active{transform:scale(.86);}
+.btile.used{background:#A5D6A7;border-color:#81C784;color:#81C784;pointer-events:none;opacity:.55;}
+.btile.sel{background:#fff;color:var(--tile-b);border-color:var(--tile-bg);
+  box-shadow:0 0 0 3px rgba(67,160,71,.35);transform:translateY(-3px);}
+
+/* ── MANUAL INPUT OVERLAY ── */
+#manual-overlay{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.45);align-items:flex-end;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+#manual-overlay.open{display:flex;}
+#manual-box{background:#FFF8F0;border-radius:22px 22px 0 0;width:100%;
+  padding:16px 16px calc(max(16px,env(safe-area-inset-bottom)));
+  box-shadow:0 -6px 40px rgba(0,0,0,.18);animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#manual-label{font-size:13px;font-weight:700;color:var(--h1);text-align:center;margin-bottom:8px;}
+#manual-inp{width:100%;height:56px;border:2.5px solid var(--cborder);border-radius:14px;
+  font-size:28px;font-weight:900;text-align:center;color:var(--text);
+  background:var(--cell);outline:none;margin-bottom:10px;-moz-appearance:textfield;}
+#manual-inp::-webkit-inner-spin-button,#manual-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+#manual-inp:focus{border-color:var(--h1);background:#FFF3E0;}
+#manual-inp.err{border-color:var(--red);background:var(--rfade);}
+.manual-btns{display:flex;gap:8px;}
+.mbtn{flex:1;height:48px;border:none;border-radius:12px;font-size:15px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.mbtn:active{opacity:.75;}
+.mbtn.del{background:#e2e8f0;color:#2d3748;}
+.mbtn.ok{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;}
+
+/* ── PRINT ── */
+@media print{
+  body{background:#fff;height:auto;overflow:visible;}
+  header{background:#E65100!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #settings,#center-kiwi,#bank-wrap,#status,#mode-wrap,#manual-overlay{display:none!important;}
+  main{overflow:visible;height:auto;display:block;}
+  #examples-wrap{overflow:visible;}
+  .cell-blank{border:1.5px solid #555!important;background:transparent!important;color:transparent!important;}
+  .hbtn{display:none!important;}
+  .sec-card{box-shadow:none;border:1px solid #e2e8f0;break-inside:avoid;}
+  .examples-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥝 Zlomky – Rozšiřování a Zkracování</h1>
+  <a class="hbtn" href="../index.html">🏠 Domů</a>
+  <button class="hbtn" onclick="newGame()">🔄 Nová sada</button>
+  <button class="hbtn pdf" onclick="window.print()">📄 PDF</button>
+</header>
+
+<div id="settings">
+  <div class="sg">
+    <div class="slabel">Min. hodnota</div>
+    <div class="stepper">
+      <button onclick="adj('min',-1)">−</button>
+      <input class="stepper-inp" id="nMinInp" type="number" value="2"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('min',this)" onfocus="this.select()">
+      <button onclick="adj('min',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Max. hodnota</div>
+    <div class="stepper">
+      <button onclick="adj('max',-1)">−</button>
+      <input class="stepper-inp" id="nMaxInp" type="number" value="30"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('max',this)" onfocus="this.select()">
+      <button onclick="adj('max',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel" style="visibility:hidden">gen</div>
+    <button class="hbtn" style="background:var(--h1);border-color:var(--h2);"
+            onclick="newGame()">Vygenerovat</button>
+  </div>
+</div>
+
+<!-- MODE TOGGLE -->
+<div id="mode-wrap">
+  <input type="checkbox" id="mode-chk" checked onchange="toggleMode(this.checked)">
+  <label for="mode-chk">Banka řešení</label>
+  <span id="mode-desc">Tapni políčko, pak číslo z banky níže</span>
+</div>
+
+<div id="status"></div>
+
+<main>
+  <!-- Examples -->
+  <div id="examples-wrap">
+    <div class="examples-grid">
+      <div class="sec-card sec-expand">
+        <div class="sec-head">
+          <h2>Rozšiřování zlomků</h2>
+          <span class="score" id="eScore"></span>
+          <button class="sec-check-btn" onclick="checkSection('e')">Zkontrolovat</button>
+        </div>
+        <p class="sec-sub">Doplň chybějící část. <strong>a/b = (a·k)/(b·k)</strong></p>
+        <div class="examples-list" id="eList"></div>
+      </div>
+      <div id="center-kiwi"><div id="kiwi-bg"></div></div>
+      <div class="sec-card sec-simplify">
+        <div class="sec-head">
+          <h2>Zkracování zlomků</h2>
+          <span class="score" id="sScore"></span>
+          <button class="sec-check-btn" onclick="checkSection('s')">Zkontrolovat</button>
+        </div>
+        <p class="sec-sub">Zkrať zlomek. <span class="badge bl" style="display:inline;margin-left:0">nejmenší tvar</span> = zkrať úplně.</p>
+        <div class="examples-list" id="sList"></div>
+      </div>
+    </div>
+    <div id="bank-wrap">
+      <div id="bank-label">Dostupné odpovědi — tapni políčko ↑ pak číslo níže</div>
+      <div id="bank"></div>
+    </div>
+  </div>
+</main>
+
+<!-- MANUAL INPUT OVERLAY -->
+<div id="manual-overlay" onclick="manualOverlayClick(event)">
+  <div id="manual-box">
+    <div id="manual-label">Zadej číslo:</div>
+    <input id="manual-inp" type="number" inputmode="numeric" pattern="[0-9]*"
+           placeholder="?" onkeydown="manualKey(event)" oninput="">
+    <div class="manual-btns">
+      <button class="mbtn del" onclick="manualClear()">✕ Smazat</button>
+      <button class="mbtn ok"  onclick="manualConfirm()">Potvrdit ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   10 PAINTED KIWI IMAGES (downloaded locally to ./kiwi/)
+   Source: Wikimedia Commons (public domain)
+════════════════════════════════════════ */
+window.KIWIS=[
+  'kiwi/kiwi1.jpg',
+  'kiwi/kiwi2.jpg',
+  'kiwi/kiwi3.jpg',
+  'kiwi/kiwi4.jpg',
+  'kiwi/kiwi5.jpg',
+  'kiwi/kiwi6.jpg',
+  'kiwi/kiwi7.jpg',
+  'kiwi/kiwi8.jpg',
+  'kiwi/kiwi9.jpg',
+  'kiwi/kiwi10.jpg',
+];
+
+
+/* ════════════════════════════════════════
+   CONFIG & STATE
+════════════════════════════════════════ */
+let CFG={nMin:2,nMax:30};
+let ED=[],SD=[];
+let bankTiles=[];
+let answers={},bankUsed={};
+let activeId=null,selTileIdx=null,feedback=null;
+let bankMode=true;
+let currentKiwiIdx=-1;
+
+/* ════════════════════════════════════════
+   MATH
+════════════════════════════════════════ */
+const gcd=(a,b)=>{while(b){[a,b]=[b,a%b];}return a;};
+const rnd=(lo,hi)=>Math.floor(Math.random()*(hi-lo+1))+lo;
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=rnd(0,i);[r[i],r[j]]=[r[j],r[i]];}return r;}
+
+function genPair(nMin,nMax,excl,noEq=false){
+  const maxK=Math.floor(nMax/nMin);
+  for(let t=0;t<500;t++){
+    const k=rnd(2,maxK), bMax=Math.floor(nMax/k);
+    if(bMax<=nMin) continue;
+    const a=rnd(nMin,bMax),b=rnd(nMin,bMax);
+    if(noEq&&a===b) continue;
+    if(excl&&excl.has(`${a}/${b}`)) continue;
+    return{a,b,k};
+  }
+  return null;
+}
+function genCoprimePair(nMin,nMax,excl){
+  const maxK=Math.floor(nMax/nMin);
+  for(let t=0;t<600;t++){
+    const k=rnd(2,maxK), bMax=Math.floor(nMax/k);
+    if(bMax<=nMin) continue;
+    const a=rnd(nMin,bMax),b=rnd(nMin,bMax);
+    if(a===b||gcd(a,b)!==1) continue;
+    if(excl&&excl.has(`${a}/${b}`)) continue;
+    return{a,b,k};
+  }
+  const k=2,bMax=Math.floor(nMax/k);
+  const a=rnd(nMin,Math.max(nMin,bMax-1));
+  return{a,b:a+1,k};
+}
+
+/* ════════════════════════════════════════
+   HTML HELPERS
+════════════════════════════════════════ */
+const F=(n,d)=>`<span class="frac"><span class="fn">${n}</span><span class="fb"></span><span class="fd">${d}</span></span>`;
+const BL=(id)=>`<div class="cell-blank" id="${id}" onclick="tapBlank('${id}')">?</div>`;
+const FBL=(n,d)=>`<span class="frac"><span class="fn">${n}</span><span class="fb"></span><span class="fd">${d}</span></span>`;
+
+/* ════════════════════════════════════════
+   GENERATE
+════════════════════════════════════════ */
+function generate(){
+  const{nMin,nMax}=CFG;
+  if(nMax<nMin*2){setStatus('Rozsah příliš úzký — max musí být ≥ 2× min.','error');return;}
+  ED=[];SD=[];answers={};bankUsed={};activeId=null;selTileIdx=null;feedback=null;
+
+  const et=shuffle(['A','A','B','B',rnd(0,1)?'A':'B']);
+  const usedE=new Set();let hadEq=false;let eH='';
+  for(let i=0;i<5;i++){
+    const p=genPair(nMin,nMax,usedE,hadEq);if(!p) continue;
+    if(p.a===p.b) hadEq=true;
+    usedE.add(`${p.a}/${p.b}`);
+    const{a,b,k}=p,t=et[i],id=`e${i}`;
+    let row=`<div class="ex"><span class="ex-n">${i+1}.</span>`;
+    row+=F(a,b)+`<span class="eq">=</span>`;
+    if(t==='A'){row+=FBL(a*k,BL(id));ED.push({id,ans:b*k});row+=`<span class="badge be">jmenovatel</span>`;}
+    else       {row+=FBL(BL(id),b*k);ED.push({id,ans:a*k});row+=`<span class="badge be">čitatel</span>`;}
+    eH+=row+'</div>';
+  }
+  document.getElementById('eList').innerHTML=eH;
+  resetScore('eScore');
+
+  const st=shuffle(['A','A','B','B','C']);
+  const usedS=new Set();let sH='';
+  for(let i=0;i<5;i++){
+    const p=genCoprimePair(nMin,nMax,usedS);if(!p) continue;
+    usedS.add(`${p.a}/${p.b}`);
+    const{a,b,k}=p,t=st[i],id=`s${i}`;
+    let row=`<div class="ex"><span class="ex-n">${i+1}.</span>`;
+    row+=F(a*k,b*k)+`<span class="eq">=</span>`;
+    if(t==='A'){row+=FBL(BL(id),b);SD.push({id,type:'s',ans:a});row+=`<span class="badge bs">čitatel</span>`;}
+    else if(t==='B'){row+=FBL(a,BL(id));SD.push({id,type:'s',ans:b});row+=`<span class="badge bs">jmenovatel</span>`;}
+    else{const ni=id+'n',di=id+'d';row+=FBL(BL(ni),BL(di));SD.push({id,type:'d',ni,di,a,b});row+=`<span class="badge bl">nejmenší tvar</span>`;}
+    sH+=row+'</div>';
+  }
+  document.getElementById('sList').innerHTML=sH;
+  resetScore('sScore');
+  buildBank();renderBank();updateStatus();
+  requestAnimationFrame(alignKiwi);
+}
+
+/* ════════════════════════════════════════
+   BANK
+════════════════════════════════════════ */
+function buildBank(){
+  const vals=[];
+  [...ED,...SD].forEach(ex=>{
+    if(ex.type==='d'){vals.push(ex.a,ex.b);}else{vals.push(ex.ans);}
+  });
+  vals.sort((a,b)=>a-b);
+  bankTiles=vals.map(v=>({value:v,used:false}));
+}
+function renderBank(){
+  const el=document.getElementById('bank');
+  el.innerHTML='';
+  bankTiles.forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='btile'+(t.used?' used':'')+(selTileIdx===i?' sel':'');
+    d.textContent=t.value;
+    d.addEventListener('click',()=>tapTile(i));
+    el.appendChild(d);
+  });
+}
+
+/* ════════════════════════════════════════
+   BLANK INTERACTION
+════════════════════════════════════════ */
+function tapBlank(id){
+  feedback=null;
+  if(!bankMode){openManual(id);return;}
+  if(selTileIdx!==null&&!bankTiles[selTileIdx].used){placeAnswer(id,selTileIdx);return;}
+  if(activeId===id){
+    if(answers[id]!==undefined) clearAnswer(id);
+    else{activeId=null;render();}
+    return;
+  }
+  activeId=id;selTileIdx=null;
+  render();renderBank();
+}
+function tapTile(idx){
+  if(bankTiles[idx].used) return;
+  if(activeId!==null){placeAnswer(activeId,idx);}
+  else{selTileIdx=(selTileIdx===idx)?null:idx;renderBank();}
+}
+function placeAnswer(blankId,tileIdx){
+  if(answers[blankId]!==undefined&&bankUsed[blankId]!==undefined)
+    bankTiles[bankUsed[blankId]].used=false;
+  answers[blankId]=bankTiles[tileIdx].value;
+  bankUsed[blankId]=tileIdx;
+  bankTiles[tileIdx].used=true;
+  activeId=null;selTileIdx=null;
+  render();renderBank();updateStatus();
+}
+function clearAnswer(blankId){
+  if(answers[blankId]!==undefined&&bankUsed[blankId]!==undefined)
+    bankTiles[bankUsed[blankId]].used=false;
+  delete answers[blankId];delete bankUsed[blankId];
+  activeId=blankId;
+  render();renderBank();updateStatus();
+}
+
+/* ════════════════════════════════════════
+   RENDER BLANKS
+════════════════════════════════════════ */
+function allBlankIds(){
+  const ids=[];
+  [...ED,...SD].forEach(ex=>{
+    if(ex.type==='d') ids.push(ex.ni,ex.di);
+    else ids.push(ex.id);
+  });
+  return ids;
+}
+function render(){
+  allBlankIds().forEach(id=>{
+    const el=document.getElementById(id);if(!el) return;
+    const val=answers[id];
+    el.textContent=val!==undefined?val:'?';
+    let cl='cell-blank';
+    if(val!==undefined) cl+=' filled';
+    if(id===activeId) cl+=' active-cell';
+    if(feedback){
+      if(feedback[id]===true)  cl+=' correct';
+      if(feedback[id]===false) cl+=' wrong';
+    }
+    el.className=cl;
+  });
+}
+
+/* ════════════════════════════════════════
+   CHECK
+════════════════════════════════════════ */
+function checkSection(sec){
+  if(!feedback) feedback={};
+  let ok=0;
+  if(sec==='e'){
+    ED.forEach(ex=>{const v=(answers[ex.id]===ex.ans);feedback[ex.id]=v;if(v)ok++;});
+    setScore('eScore',ok,5);
+    setStatus(ok===5?'🎉 Rozšiřování: vše správně!':'Rozšiřování: '+ok+'/5 správně',ok===5?'win':'error');
+  } else {
+    SD.forEach(ex=>{
+      if(ex.type==='d'){
+        const nOk=answers[ex.ni]===ex.a,dOk=answers[ex.di]===ex.b;
+        feedback[ex.ni]=nOk;feedback[ex.di]=dOk;if(nOk&&dOk)ok++;
+      } else {const v=answers[ex.id]===ex.ans;feedback[ex.id]=v;if(v)ok++;}
+    });
+    setScore('sScore',ok,5);
+    setStatus(ok===5?'🎉 Zkracování: vše správně!':'Zkracování: '+ok+'/5 správně',ok===5?'win':'error');
+  }
+  activeId=null;selTileIdx=null;
+  render();renderBank();
+}
+function checkAnswers(){checkSection('e');checkSection('s');}
+
+function setScore(id,ok,total){
+  const el=document.getElementById(id);
+  el.textContent=`${ok}/${total}`;
+  el.className=`score show ${ok===total?'full':'part'}`;
+}
+function resetScore(id){const el=document.getElementById(id);el.className='score';el.textContent='';}
+
+/* ════════════════════════════════════════
+   STATUS
+════════════════════════════════════════ */
+function setStatus(msg,cls=''){const el=document.getElementById('status');el.textContent=msg;el.className=cls;}
+function updateStatus(){
+  let total=0,filled=0;
+  [...ED,...SD].forEach(ex=>{
+    if(ex.type==='d'){
+      total+=2;
+      if(answers[ex.ni]!==undefined) filled++;
+      if(answers[ex.di]!==undefined) filled++;
+    }else{total++;if(answers[ex.id]!==undefined)filled++;}
+  });
+  if(total>0) setStatus(`Vyplněno: ${filled} / ${total}`);
+}
+
+/* ════════════════════════════════════════
+   MODE TOGGLE (banka / klávesnice)
+════════════════════════════════════════ */
+function toggleMode(checked){
+  bankMode=checked;
+  document.getElementById('bank-wrap').style.display=checked?'':'none';
+  document.getElementById('mode-desc').textContent=checked
+    ?'Tapni políčko, pak číslo z banky níže'
+    :'Tapni políčko a napiš číslo na klávesnici';
+  activeId=null;selTileIdx=null;
+  render();renderBank();
+}
+
+/* ════════════════════════════════════════
+   MANUAL INPUT
+════════════════════════════════════════ */
+function openManual(id){
+  activeId=id;
+  const inp=document.getElementById('manual-inp');
+  inp.value=answers[id]!==undefined?answers[id]:'';
+  inp.classList.remove('err');
+  document.getElementById('manual-overlay').classList.add('open');
+  render();
+  setTimeout(()=>inp.focus(),280);
+}
+function manualKey(e){if(e.key==='Enter')manualConfirm();if(e.key==='Escape')closeManual();}
+function manualConfirm(){
+  const inp=document.getElementById('manual-inp');
+  const raw=inp.value.trim();
+  if(raw===''){manualClear();return;}
+  const val=parseInt(raw,10);
+  if(isNaN(val)||val<1){inp.classList.add('err');setTimeout(()=>inp.classList.remove('err'),700);return;}
+  if(activeId!==null){
+    if(bankUsed[activeId]!==undefined){bankTiles[bankUsed[activeId]].used=false;delete bankUsed[activeId];}
+    answers[activeId]=val;
+  }
+  closeManual();
+  updateStatus();
+}
+function manualClear(){
+  if(activeId!==null){
+    if(bankUsed[activeId]!==undefined){bankTiles[bankUsed[activeId]].used=false;delete bankUsed[activeId];}
+    delete answers[activeId];
+    feedback=null;
+  }
+  closeManual();
+}
+function closeManual(){
+  document.getElementById('manual-overlay').classList.remove('open');
+  activeId=null;render();renderBank();
+}
+function manualOverlayClick(e){if(e.target===document.getElementById('manual-overlay'))closeManual();}
+
+/* ════════════════════════════════════════
+   KIWI
+════════════════════════════════════════ */
+function alignKiwi(){
+  const kb=document.getElementById('kiwi-bg');
+  const kc=document.getElementById('center-kiwi');
+  const ec=document.querySelector('.sec-expand');
+  const sc=document.querySelector('.sec-simplify');
+  if(!kb||!kc||!ec||!sc) return;
+  const kcR=kc.getBoundingClientRect();
+  const ecR=ec.getBoundingClientRect();
+  const scR=sc.getBoundingClientRect();
+  /* Align kiwi exactly with the white card background (top of taller card → bottom of taller card) */
+  const cardTop=Math.min(ecR.top,scR.top);
+  const cardBottom=Math.max(ecR.bottom,scR.bottom);
+  kb.style.top=(cardTop-kcR.top)+'px';
+  kb.style.height=(cardBottom-cardTop)+'px';
+}
+
+function pickKiwi(){
+  const el=document.getElementById('kiwi-bg');
+  if(!el) return;
+  let idx;
+  do{idx=Math.floor(Math.random()*KIWIS.length);}while(idx===currentKiwiIdx);
+  currentKiwiIdx=idx;
+  el.style.opacity='0';
+  setTimeout(()=>{
+    const img=document.createElement('img');
+    img.alt='kiwi';
+    img.src=KIWIS[idx];
+    el.innerHTML='';
+    el.appendChild(img);
+    el.style.opacity='1';
+  },300);
+}
+
+/* ════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════ */
+function adj(what,d){
+  const el=document.getElementById(what==='min'?'nMinInp':'nMaxInp');
+  const cur=parseInt(el.value)||CFG[what==='min'?'nMin':'nMax'];
+  let v=cur+d;
+  if(what==='min'){if(v<1||v>=CFG.nMax-1)return;CFG.nMin=v;}
+  else{if(v<=CFG.nMin+1||v>1000)return;CFG.nMax=v;}
+  el.value=v;
+}
+function onSI(what,el){
+  const v=parseInt(el.value);
+  if(isNaN(v)){el.value=what==='min'?CFG.nMin:CFG.nMax;return;}
+  if(what==='min'){if(v<1||v>=CFG.nMax-1){el.value=CFG.nMin;return;}CFG.nMin=v;}
+  else{if(v<=CFG.nMin+1||v>1000){el.value=CFG.nMax;return;}CFG.nMax=v;}
+}
+
+/* ════════════════════════════════════════
+   NEW GAME
+════════════════════════════════════════ */
+function newGame(){
+  ED=[];SD=[];answers={};bankUsed={};bankTiles=[];
+  activeId=null;selTileIdx=null;feedback=null;
+  document.getElementById('eScore').className='score';
+  document.getElementById('sScore').className='score';
+  setStatus('');
+  pickKiwi();
+  generate();
+}
+
+/* ─── resize ─── */
+let rT;window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(alignKiwi,150);});
+
+newGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Sčítání a odčítání zlomků</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#C8DFF2; --surface:#FFFFFF; --cell:#FBF4D6; --cborder:#C8A441;
+  --blank-b:#1A237E; --text:#1A237E; --text2:#5C6BC0;
+  --h1:#E65100; --h2:#F57C00;
+  --bank-bg:#E8F5E9; --bank-b:#81C784; --tile-bg:#43A047; --tile-b:#2E7D32;
+  --green:#2E7D32; --gfade:#E8F5E9; --red:#C62828; --rfade:#FFEBEE; --amber:#F57F17;
+}
+
+body{font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* HEADER */
+header{background:linear-gradient(135deg,var(--h1) 0%,var(--h2) 100%);
+  color:#fff;padding:8px 12px;display:flex;align-items:center;gap:7px;
+  box-shadow:0 2px 10px rgba(230,81,0,.35);flex-shrink:0;z-index:10;}
+header h1{flex:1;font-size:clamp(12px,2.4vw,18px);font-weight:900;letter-spacing:-.3px;}
+.hbtn{background:rgba(255,255,255,.20);border:1.5px solid rgba(255,255,255,.40);
+  color:#fff;padding:6px 11px;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background .15s;}
+.hbtn:active{background:rgba(255,255,255,.40);}
+
+/* SETTINGS */
+#settings{background:#FFF8F0;border-bottom:2px solid var(--cborder);
+  padding:6px 12px;display:flex;flex-wrap:wrap;gap:5px 10px;
+  align-items:flex-end;flex-shrink:0;}
+.sg{display:flex;flex-direction:column;gap:3px;}
+.slabel{font-size:9px;font-weight:700;color:var(--h1);text-transform:uppercase;letter-spacing:.6px;}
+.stepper{display:flex;align-items:center;background:var(--cell);
+  border:1.5px solid var(--cborder);border-radius:8px;overflow:hidden;}
+.stepper button{width:24px;height:30px;border:none;background:transparent;
+  font-size:16px;font-weight:700;color:var(--h1);cursor:pointer;
+  touch-action:manipulation;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.stepper button:active{background:#FFE0CC;}
+.stepper-inp{width:48px;height:30px;border:none;
+  border-left:1px solid var(--cborder);border-right:1px solid var(--cborder);
+  background:transparent;text-align:center;font-size:12px;font-weight:700;
+  color:var(--text);padding:0 3px;outline:none;-moz-appearance:textfield;}
+.stepper-inp::-webkit-inner-spin-button,.stepper-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+.stepper-inp:focus{background:#FFF3E0;}
+
+/* MODE TOGGLE */
+#mode-wrap{display:flex;align-items:center;gap:8px;
+  padding:5px 12px;background:#FFF8F0;border-bottom:1.5px solid var(--cborder);
+  flex-shrink:0;min-height:38px;}
+#mode-wrap label{font-size:12px;font-weight:700;color:var(--h1);cursor:pointer;
+  user-select:none;-webkit-user-select:none;white-space:nowrap;}
+#mode-chk{width:20px;height:20px;cursor:pointer;accent-color:var(--h1);flex-shrink:0;}
+#mode-desc{font-size:11px;color:#718096;flex:1;}
+
+/* STATUS */
+#status{text-align:center;padding:2px 12px;font-size:12px;font-weight:600;
+  color:var(--text2);flex-shrink:0;min-height:20px;transition:color .2s;}
+#status.win{color:var(--green);}
+#status.error{color:var(--red);}
+
+/* MAIN */
+main{flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;position:relative;}
+#examples-wrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;padding:8px 10px;}
+#examples-wrap::-webkit-scrollbar{width:4px;}
+#examples-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:4px;}
+
+/* CARD */
+.sec-card{background:#fff;border-radius:13px;padding:10px 12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.sec-sub{font-size:11px;color:#718096;margin-bottom:8px;line-height:1.35;}
+.examples-list{display:flex;flex-direction:column;gap:7px;}
+
+/* EXAMPLE ROW */
+.ex{display:flex;align-items:center;gap:5px;padding:8px 10px;
+  background:#f7fafc;border-radius:8px;border:2px solid #e2e8f0;
+  flex-wrap:wrap;-webkit-tap-highlight-color:transparent;}
+.ex.bad{background:#fff5f5;border-color:#fc8181;}
+.ex-n{font-size:.72rem;font-weight:800;color:#a0aec0;min-width:18px;flex-shrink:0;}
+.eq,.op{font-size:1.05rem;font-weight:700;color:#4a5568;flex-shrink:0;align-self:center;padding:0 1px;}
+.op{color:var(--h1);}
+
+/* FRACTION */
+.frac{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.fn,.fd{padding:1px 5px;min-width:24px;text-align:center;
+  font-size:clamp(12px,1.8vw,15px);font-weight:800;line-height:1.4;color:var(--text);}
+.fb{width:100%;min-width:24px;border-top:2.5px solid #2d3748;}
+
+/* BLANK CELL */
+.cell-blank{
+  min-width:1.9em;height:1.45em;padding:0 0.2em;
+  font-size:clamp(12px,1.8vw,15px);font-weight:800;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text2);background:var(--surface);
+  border:2px solid var(--blank-b);border-radius:5px;
+  cursor:pointer;touch-action:manipulation;
+  transition:transform .1s,background .12s,border-color .12s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+  position:relative;
+}
+.cell-blank::after{content:'';position:absolute;inset:-8px;}
+.cell-blank:active{transform:scale(.88);}
+.cell-blank.active-cell{border-color:var(--amber)!important;animation:pulse .7s ease infinite;}
+@keyframes pulse{0%,100%{border-color:var(--amber);}50%{border-color:#FFCC02;}}
+.cell-blank.filled{border-color:var(--text2);}
+.cell-blank.correct{background:var(--gfade);border-color:var(--green);color:var(--green);}
+.cell-blank.wrong{background:var(--rfade);border-color:var(--red);color:var(--red);}
+
+/* ROW CHECK */
+.row-check{margin-left:auto;background:#2b6cb0;color:#fff;border:none;
+  padding:5px 12px;border-radius:7px;font-size:11px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.row-check:active{background:#2c5282;}
+.row-score{font-size:.7rem;font-weight:800;padding:2px 8px;border-radius:999px;
+  display:none;flex-shrink:0;}
+.row-score.show{display:inline-flex;align-items:center;}
+.row-score.full{background:#f0fff4;color:#276749;}
+.row-score.part{background:#fff5f5;color:#c53030;}
+
+/* BANK */
+#bank-wrap{background:var(--bank-bg);border:2px solid var(--bank-b);border-radius:13px;
+  padding:6px 10px 8px;margin-top:8px;}
+#bank-label{font-size:9px;font-weight:800;color:var(--tile-b);
+  text-transform:uppercase;letter-spacing:.6px;text-align:center;margin-bottom:3px;}
+#bank{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;
+  max-height:130px;overflow-y:auto;}
+.btile{height:36px;min-width:36px;padding:0 6px;
+  background:var(--tile-bg);color:#fff;border-radius:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:2.5px solid var(--tile-b);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:all .12s;user-select:none;-webkit-user-select:none;font-size:14px;}
+.btile:active{transform:scale(.86);}
+.btile.used{background:#A5D6A7;border-color:#81C784;color:#81C784;pointer-events:none;opacity:.55;}
+.btile.sel{background:#fff;color:var(--tile-b);border-color:var(--tile-bg);
+  box-shadow:0 0 0 3px rgba(67,160,71,.35);transform:translateY(-3px);}
+
+/* MANUAL OVERLAY */
+#manual-overlay{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.45);align-items:flex-end;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+#manual-overlay.open{display:flex;}
+#manual-box{background:#FFF8F0;border-radius:22px 22px 0 0;width:100%;
+  padding:16px 16px calc(max(16px,env(safe-area-inset-bottom)));
+  box-shadow:0 -6px 40px rgba(0,0,0,.18);animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#manual-label{font-size:13px;font-weight:700;color:var(--h1);text-align:center;margin-bottom:8px;}
+#manual-inp{width:100%;height:56px;border:2.5px solid var(--cborder);border-radius:14px;
+  font-size:28px;font-weight:900;text-align:center;color:var(--text);
+  background:var(--cell);outline:none;margin-bottom:10px;-moz-appearance:textfield;}
+#manual-inp::-webkit-inner-spin-button,#manual-inp::-webkit-outer-spin-button{-webkit-appearance:none;}
+#manual-inp:focus{border-color:var(--h1);background:#FFF3E0;}
+#manual-inp.err{border-color:var(--red);background:var(--rfade);}
+.manual-btns{display:flex;gap:8px;}
+.mbtn{flex:1;height:48px;border:none;border-radius:12px;font-size:15px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.mbtn:active{opacity:.75;}
+.mbtn.del{background:#e2e8f0;color:#2d3748;}
+.mbtn.ok{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;}
+
+/* PRINT */
+@media print{
+  body{background:#fff;height:auto;overflow:visible;}
+  header{background:#E65100!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #settings,#bank-wrap,#status,#mode-wrap,#manual-overlay{display:none!important;}
+  main{overflow:visible;height:auto;display:block;}
+  #examples-wrap{overflow:visible;}
+  .cell-blank{border:1.5px solid #555!important;background:transparent!important;color:transparent!important;}
+  .hbtn,.row-check,.row-score{display:none!important;}
+  .sec-card{box-shadow:none;border:1px solid #e2e8f0;break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥝 Sčítání a odčítání zlomků</h1>
+  <a class="hbtn" href="../index.html">🏠 Domů</a>
+  <button class="hbtn" onclick="newGame()">🔄 Nová sada</button>
+  <button class="hbtn" onclick="window.print()">📄 PDF</button>
+</header>
+
+<div id="settings">
+  <div class="sg">
+    <div class="slabel">Min čitatel</div>
+    <div class="stepper">
+      <button onclick="adj('numMin',-1)">−</button>
+      <input class="stepper-inp" id="numMinInp" type="number" value="1"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('numMin',this)" onfocus="this.select()">
+      <button onclick="adj('numMin',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Max čitatel</div>
+    <div class="stepper">
+      <button onclick="adj('numMax',-1)">−</button>
+      <input class="stepper-inp" id="numMaxInp" type="number" value="12"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('numMax',this)" onfocus="this.select()">
+      <button onclick="adj('numMax',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Min jmenovatel</div>
+    <div class="stepper">
+      <button onclick="adj('denMin',-1)">−</button>
+      <input class="stepper-inp" id="denMinInp" type="number" value="2"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('denMin',this)" onfocus="this.select()">
+      <button onclick="adj('denMin',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Max jmenovatel</div>
+    <div class="stepper">
+      <button onclick="adj('denMax',-1)">−</button>
+      <input class="stepper-inp" id="denMaxInp" type="number" value="12"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('denMax',this)" onfocus="this.select()">
+      <button onclick="adj('denMax',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel">Počet zlomků</div>
+    <div class="stepper">
+      <button onclick="adj('count',-1)">−</button>
+      <input class="stepper-inp" id="countInp" type="number" value="2"
+             inputmode="numeric" pattern="[0-9]*"
+             onchange="onSI('count',this)" onfocus="this.select()">
+      <button onclick="adj('count',+1)">+</button>
+    </div>
+  </div>
+  <div class="sg">
+    <div class="slabel" style="visibility:hidden">gen</div>
+    <button class="hbtn" style="background:var(--h1);border-color:var(--h2);"
+            onclick="newGame()">Vygenerovat</button>
+  </div>
+</div>
+
+<div id="mode-wrap">
+  <input type="checkbox" id="mode-chk" checked onchange="toggleMode(this.checked)">
+  <label for="mode-chk">Banka řešení</label>
+  <span id="mode-desc">Tapni políčko, pak číslo z banky níže</span>
+</div>
+
+<div id="status"></div>
+
+<main>
+  <div id="examples-wrap">
+    <div class="sec-card">
+      <p class="sec-sub">Převeď zlomky na společný jmenovatel, sečti/odečti, pokud lze, zkrať. Tlačítkem <strong>Zkontrolovat</strong> ověříš každý řádek zvlášť.</p>
+      <div class="examples-list" id="exList"></div>
+    </div>
+    <div id="bank-wrap">
+      <div id="bank-label">Dostupné odpovědi — tapni políčko ↑ pak číslo níže</div>
+      <div id="bank"></div>
+    </div>
+  </div>
+</main>
+
+<div id="manual-overlay" onclick="manualOverlayClick(event)">
+  <div id="manual-box">
+    <div id="manual-label">Zadej číslo:</div>
+    <input id="manual-inp" type="number" inputmode="numeric" pattern="[0-9]*"
+           placeholder="?" onkeydown="manualKey(event)" oninput="">
+    <div class="manual-btns">
+      <button class="mbtn del" onclick="manualClear()">✕ Smazat</button>
+      <button class="mbtn ok"  onclick="manualConfirm()">Potvrdit ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG & STATE
+════════════════════════════════════════ */
+let CFG={numMin:1,numMax:12,denMin:2,denMax:12,count:2};
+let EX=[];
+let answers={},bankUsed={},feedback=null;
+let activeId=null,selTileIdx=null,bankTiles=[];
+let bankMode=true;
+
+/* ════════════════════════════════════════
+   MATH
+════════════════════════════════════════ */
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a||1;};
+const lcmFn=(a,b)=>(a*b)/gcd(a,b);
+const rnd=(lo,hi)=>Math.floor(Math.random()*(hi-lo+1))+lo;
+
+/* ════════════════════════════════════════
+   GENERATION — guarantees positive whole result
+════════════════════════════════════════ */
+function genExample(idx){
+  const{numMin,numMax,denMin,denMax,count}=CFG;
+  /* Soft cap on common denominator to keep examples sane */
+  const lcmCap=Math.max(48,denMax*4,denMax*denMax/count);
+  for(let attempt=0;attempt<400;attempt++){
+    const fracs=[];
+    for(let i=0;i<count;i++){
+      fracs.push({n:rnd(numMin,numMax),d:rnd(denMin,denMax)});
+    }
+    const ops=[];
+    for(let i=1;i<count;i++){
+      ops.push(Math.random()<0.5?'+':'-');
+    }
+    /* LCM of all denominators */
+    let L=fracs[0].d;
+    for(let i=1;i<count;i++) L=lcmFn(L,fracs[i].d);
+    if(L>lcmCap) continue;
+    /* Convert each fraction to common denominator */
+    const conv=fracs.map(f=>({n:f.n*(L/f.d),d:L}));
+    /* Compute result numerator */
+    let rN=conv[0].n;
+    for(let i=0;i<ops.length;i++){
+      if(ops[i]==='+') rN+=conv[i+1].n; else rN-=conv[i+1].n;
+    }
+    if(rN<=0) continue;
+    /* Reduced form */
+    const g=gcd(rN,L);
+    const reduced={n:rN/g,d:L/g};
+    const isReducible=g>1;
+    /* Build blanks list */
+    const blanks=[];
+    for(let i=0;i<count;i++){
+      blanks.push({id:`e${idx}_c${i}_n`,ans:conv[i].n});
+      blanks.push({id:`e${idx}_c${i}_d`,ans:conv[i].d});
+    }
+    blanks.push({id:`e${idx}_r_n`,ans:rN});
+    blanks.push({id:`e${idx}_r_d`,ans:L});
+    if(isReducible){
+      blanks.push({id:`e${idx}_z_n`,ans:reduced.n});
+      blanks.push({id:`e${idx}_z_d`,ans:reduced.d});
+    }
+    return{idx,fracs,ops,conv,result:{n:rN,d:L},reduced,isReducible,blanks};
+  }
+  return null;
+}
+
+/* ════════════════════════════════════════
+   RENDER
+════════════════════════════════════════ */
+const fracHTML=(n,d)=>`<span class="frac"><span class="fn">${n}</span><span class="fb"></span><span class="fd">${d}</span></span>`;
+const blankHTML=(id)=>`<span class="cell-blank" id="${id}" onclick="tapBlank('${id}')">?</span>`;
+const fracBlankHTML=(prefix)=>`<span class="frac"><span class="fn">${blankHTML(prefix+'_n')}</span><span class="fb"></span><span class="fd">${blankHTML(prefix+'_d')}</span></span>`;
+
+function renderExamples(){
+  let html='';
+  EX.forEach((ex,idx)=>{
+    if(!ex){
+      html+=`<div class="ex bad"><span class="ex-n">${idx+1}.</span><span style="color:#c53030;font-size:12px">Nepodařilo se vygenerovat — uprav rozsah.</span></div>`;
+      return;
+    }
+    let h=`<div class="ex" id="ex${idx}"><span class="ex-n">${idx+1}.</span>`;
+    h+=fracHTML(ex.fracs[0].n,ex.fracs[0].d);
+    for(let i=0;i<ex.ops.length;i++){
+      h+=`<span class="op">${ex.ops[i]}</span>`;
+      h+=fracHTML(ex.fracs[i+1].n,ex.fracs[i+1].d);
+    }
+    h+=`<span class="eq">=</span>`;
+    h+=fracBlankHTML(`e${idx}_c0`);
+    for(let i=0;i<ex.ops.length;i++){
+      h+=`<span class="op">${ex.ops[i]}</span>`;
+      h+=fracBlankHTML(`e${idx}_c${i+1}`);
+    }
+    h+=`<span class="eq">=</span>`;
+    h+=fracBlankHTML(`e${idx}_r`);
+    if(ex.isReducible){
+      h+=`<span class="eq">=</span>`;
+      h+=fracBlankHTML(`e${idx}_z`);
+    }
+    h+=`<span class="row-score" id="rs${idx}"></span>`;
+    h+=`<button class="row-check" onclick="checkRow(${idx})">Zkontrolovat</button>`;
+    h+=`</div>`;
+    html+=h;
+  });
+  document.getElementById('exList').innerHTML=html;
+}
+
+/* ════════════════════════════════════════
+   GENERATE 5 EXAMPLES
+════════════════════════════════════════ */
+function generate(){
+  EX=[];answers={};bankUsed={};activeId=null;selTileIdx=null;feedback=null;
+  for(let i=0;i<5;i++) EX.push(genExample(i));
+  renderExamples();
+  buildBank();renderBank();updateStatus();
+}
+
+/* ════════════════════════════════════════
+   BANK
+════════════════════════════════════════ */
+function buildBank(){
+  const vals=[];
+  EX.forEach(ex=>{if(ex) ex.blanks.forEach(b=>vals.push(b.ans));});
+  vals.sort((a,b)=>a-b);
+  bankTiles=vals.map(v=>({value:v,used:false}));
+}
+function renderBank(){
+  const el=document.getElementById('bank');
+  el.innerHTML='';
+  bankTiles.forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='btile'+(t.used?' used':'')+(selTileIdx===i?' sel':'');
+    d.textContent=t.value;
+    d.addEventListener('click',()=>tapTile(i));
+    el.appendChild(d);
+  });
+}
+
+/* ════════════════════════════════════════
+   BLANK INTERACTION
+════════════════════════════════════════ */
+function tapBlank(id){
+  feedback=null;
+  if(!bankMode){openManual(id);return;}
+  if(selTileIdx!==null&&!bankTiles[selTileIdx].used){placeAnswer(id,selTileIdx);return;}
+  if(activeId===id){
+    if(answers[id]!==undefined) clearAnswer(id);
+    else{activeId=null;render();}
+    return;
+  }
+  activeId=id;selTileIdx=null;
+  render();renderBank();
+}
+function tapTile(idx){
+  if(bankTiles[idx].used) return;
+  if(activeId!==null){placeAnswer(activeId,idx);}
+  else{selTileIdx=(selTileIdx===idx)?null:idx;renderBank();}
+}
+function placeAnswer(blankId,tileIdx){
+  if(answers[blankId]!==undefined&&bankUsed[blankId]!==undefined)
+    bankTiles[bankUsed[blankId]].used=false;
+  answers[blankId]=bankTiles[tileIdx].value;
+  bankUsed[blankId]=tileIdx;
+  bankTiles[tileIdx].used=true;
+  activeId=null;selTileIdx=null;
+  render();renderBank();updateStatus();
+}
+function clearAnswer(blankId){
+  if(answers[blankId]!==undefined&&bankUsed[blankId]!==undefined)
+    bankTiles[bankUsed[blankId]].used=false;
+  delete answers[blankId];delete bankUsed[blankId];
+  activeId=blankId;
+  render();renderBank();updateStatus();
+}
+
+/* ════════════════════════════════════════
+   RENDER BLANKS
+════════════════════════════════════════ */
+function allBlankIds(){
+  const ids=[];
+  EX.forEach(ex=>{if(ex)ex.blanks.forEach(b=>ids.push(b.id));});
+  return ids;
+}
+function render(){
+  allBlankIds().forEach(id=>{
+    const el=document.getElementById(id);if(!el) return;
+    const val=answers[id];
+    el.textContent=val!==undefined?val:'?';
+    let cl='cell-blank';
+    if(val!==undefined) cl+=' filled';
+    if(id===activeId) cl+=' active-cell';
+    if(feedback){
+      if(feedback[id]===true) cl+=' correct';
+      if(feedback[id]===false) cl+=' wrong';
+    }
+    el.className=cl;
+  });
+}
+
+/* ════════════════════════════════════════
+   CHECK ROW
+════════════════════════════════════════ */
+function checkRow(idx){
+  const ex=EX[idx];if(!ex) return;
+  if(!feedback) feedback={};
+  let correct=0;
+  ex.blanks.forEach(b=>{
+    const ok=answers[b.id]===b.ans;
+    feedback[b.id]=ok;if(ok) correct++;
+  });
+  const total=ex.blanks.length;
+  const rs=document.getElementById('rs'+idx);
+  if(rs){
+    rs.textContent=`${correct}/${total}`;
+    rs.className='row-score show '+(correct===total?'full':'part');
+  }
+  activeId=null;selTileIdx=null;
+  render();renderBank();
+  if(correct===total) setStatus(`Příklad ${idx+1}: vše správně! 🎉`,'win');
+  else setStatus(`Příklad ${idx+1}: ${correct}/${total} správně — zkus znovu`,'error');
+}
+
+/* ════════════════════════════════════════
+   STATUS
+════════════════════════════════════════ */
+function setStatus(msg,cls=''){const el=document.getElementById('status');el.textContent=msg;el.className=cls;}
+function updateStatus(){
+  let total=0,filled=0;
+  EX.forEach(ex=>{if(!ex)return;
+    ex.blanks.forEach(b=>{total++;if(answers[b.id]!==undefined) filled++;});
+  });
+  if(total>0) setStatus(`Vyplněno: ${filled} / ${total}`);
+}
+
+/* ════════════════════════════════════════
+   MODE TOGGLE
+════════════════════════════════════════ */
+function toggleMode(checked){
+  bankMode=checked;
+  document.getElementById('bank-wrap').style.display=checked?'':'none';
+  document.getElementById('mode-desc').textContent=checked
+    ?'Tapni políčko, pak číslo z banky níže'
+    :'Tapni políčko a napiš číslo na klávesnici';
+  activeId=null;selTileIdx=null;
+  render();renderBank();
+}
+
+/* ════════════════════════════════════════
+   MANUAL INPUT
+════════════════════════════════════════ */
+function openManual(id){
+  activeId=id;
+  const inp=document.getElementById('manual-inp');
+  inp.value=answers[id]!==undefined?answers[id]:'';
+  inp.classList.remove('err');
+  document.getElementById('manual-overlay').classList.add('open');
+  render();
+  setTimeout(()=>inp.focus(),280);
+}
+function manualKey(e){if(e.key==='Enter')manualConfirm();if(e.key==='Escape')closeManual();}
+function manualConfirm(){
+  const inp=document.getElementById('manual-inp');
+  const raw=inp.value.trim();
+  if(raw===''){manualClear();return;}
+  const val=parseInt(raw,10);
+  if(isNaN(val)||val<1){inp.classList.add('err');setTimeout(()=>inp.classList.remove('err'),700);return;}
+  if(activeId!==null){
+    if(bankUsed[activeId]!==undefined){bankTiles[bankUsed[activeId]].used=false;delete bankUsed[activeId];}
+    answers[activeId]=val;
+  }
+  closeManual();updateStatus();
+}
+function manualClear(){
+  if(activeId!==null){
+    if(bankUsed[activeId]!==undefined){bankTiles[bankUsed[activeId]].used=false;delete bankUsed[activeId];}
+    delete answers[activeId];feedback=null;
+  }
+  closeManual();
+}
+function closeManual(){
+  document.getElementById('manual-overlay').classList.remove('open');
+  activeId=null;render();renderBank();
+}
+function manualOverlayClick(e){if(e.target===document.getElementById('manual-overlay'))closeManual();}
+
+/* ════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════ */
+function adj(what,d){
+  const map={numMin:'numMinInp',numMax:'numMaxInp',denMin:'denMinInp',denMax:'denMaxInp',count:'countInp'};
+  const el=document.getElementById(map[what]);
+  const cur=parseInt(el.value)||CFG[what];
+  let v=cur+d;
+  if(!validate(what,v)) return;
+  CFG[what]=v;el.value=v;
+}
+function onSI(what,el){
+  const v=parseInt(el.value);
+  if(isNaN(v)){el.value=CFG[what];return;}
+  if(!validate(what,v)){el.value=CFG[what];return;}
+  CFG[what]=v;
+}
+function validate(what,v){
+  if(what==='numMin') return v>=1&&v<=CFG.numMax;
+  if(what==='numMax') return v>=CFG.numMin&&v<=200;
+  if(what==='denMin') return v>=1&&v<=CFG.denMax;
+  if(what==='denMax') return v>=CFG.denMin&&v<=200;
+  if(what==='count')  return v>=2&&v<=4;
+  return false;
+}
+
+/* ════════════════════════════════════════
+   NEW GAME
+════════════════════════════════════════ */
+function newGame(){
+  EX=[];answers={};bankUsed={};bankTiles=[];
+  activeId=null;selTileIdx=null;feedback=null;
+  setStatus('');
+  generate();
+}
+
+newGame();
+</script>
+</body>
+</html>
